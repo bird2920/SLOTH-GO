@@ -57,7 +57,7 @@ func main() {
 	fmt.Println("Pattern " + Pattern)
 	fmt.Println("Folder Type " + folderType)
 
-	readChan = make(chan string, 250)
+	readChan = make(chan string, 1000)
 
 	//Is the file a file?
 	files, err := ioutil.ReadDir(inPath)
@@ -66,7 +66,7 @@ func main() {
 	}
 
 	//Start workers
-	for i := 0; i < 250; i++ {
+	for i := 0; i < 1000; i++ {
 		wg.Add(1)
 		go MoveFiles(readChan)
 	}
@@ -90,20 +90,21 @@ func main() {
 func MoveFiles(inChan chan string) {
 
 	for fileToMove := range inChan {
+
 		//Input file
 		in := inPath + "\\" + fileToMove
 
-		fmt.Println(in)
-
 		outFolder := CreateOutputPath(inPath, outPath, fileToMove)
+
 		out := outFolder + "\\" + fileToMove
 
 		//create the directory (by default only if it doesn't exist')
-		os.MkdirAll(outFolder, os.ModePerm)
+		os.MkdirAll(outFolder, 0666)
 
 		err := os.Rename(in, out)
 		if err != nil {
 			log.Fatal(err)
+			println(err)
 		}
 	}
 
