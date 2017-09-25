@@ -9,6 +9,7 @@ import (
 	"os/user"
 	C "strconv"
 	"sync"
+	"time"
 )
 
 var wg sync.WaitGroup
@@ -21,7 +22,7 @@ var folderType string
 func main() {
 	println("SLOTH: GO Edition")
 	println("----------------------")
-
+	start := time.Now()
 	usr, err := user.Current()
 	if err != nil {
 		log.Fatal(err)
@@ -52,10 +53,10 @@ func main() {
 	Pattern = *pattern
 	folderType = *fType
 
-	fmt.Println("Input Path " + inPath)
-	fmt.Println("Output Path " + outPath)
-	fmt.Println("Pattern " + Pattern)
-	fmt.Println("Folder Type " + folderType)
+	fmt.Println("Input Path: " + inPath)
+	fmt.Println("Output Path: " + outPath)
+	fmt.Println("Pattern: " + Pattern)
+	fmt.Println("Folder Type: " + folderType)
 
 	readChan = make(chan string, 1000)
 
@@ -85,6 +86,9 @@ func main() {
 
 	//Wait for all go routines to finish
 	wg.Wait()
+
+	elapsed := time.Since(start)
+	println("Execution Time: ", elapsed)
 }
 
 func MoveFiles(inChan chan string) {
@@ -127,7 +131,7 @@ func CreateOutputPath(inPath string, outPath string, fileToMove string) string {
 		mTime := fi.ModTime()
 
 		year := C.Itoa(mTime.Year())
-		month := mTime.Month().String() //The month field is coming across as the month name.
+		month := C.Itoa(int(time.Now().Month()))
 		day := "Day " + C.Itoa(mTime.Day())
 
 		outFolder = outPath + "\\" + year + "\\" + month + "\\" + day
