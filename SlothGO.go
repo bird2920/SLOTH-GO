@@ -11,6 +11,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"net/http"
+	"encoding/json"
+	"bytes"
 )
 
 var wg sync.WaitGroup
@@ -90,6 +93,18 @@ func main() {
 
 	elapsed := time.Since(start)
 	println("Execution Time: ", elapsed)
+
+	values := map[string]string{"value1": inPath, "value2" : outPath, "value3": Pattern}
+	jsonValue, _ := json.Marshal(values)
+
+	resp, err := http.Post("https://maker.ifttt.com/trigger/Sloth_Notify/with/key/cRoTTDKR6fNC2X1MifxRyW", "application/json", bytes.NewBuffer(jsonValue))
+	if err != nil {
+
+	}
+
+	println("Notification Sent to IFTTT.com", resp.Status)
+
+
 }
 
 func MoveFiles(inChan chan string) {
