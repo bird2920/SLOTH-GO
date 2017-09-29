@@ -95,7 +95,7 @@ func main() {
 	jsonValue, _ := json.Marshal(values)
 
 	//Notify IFTTT.com custom Maker channel
-	resp, err := http.Post("https://maker.ifttt.com/trigger/Sloth_Notify/with/key/cRoTTDKR6fNC2X1MifxRyW", "application/json", bytes.NewBuffer(jsonValue))
+	resp, err := http.Post("https://maker.ifttt.com/trigger/Sloth_Notify/with/key/", "application/json", bytes.NewBuffer(jsonValue))
 	if err != nil {
 		println(resp.Status)
 	}
