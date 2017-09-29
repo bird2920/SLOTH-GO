@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/user"
 	C "strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -55,7 +56,7 @@ func main() {
 
 	fmt.Println("Input Path: " + inPath)
 	fmt.Println("Output Path: " + outPath)
-	fmt.Println("Pattern: " + Pattern)
+	fmt.Println("Pattern: " + strings.ToUpper(Pattern))
 	fmt.Println("Folder Type: " + folderType)
 
 	readChan = make(chan string, 1000)
