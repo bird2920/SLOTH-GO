@@ -48,7 +48,7 @@ func main() {
 	pattern := flag.String("pattern", "zip", "file search pattern")
 
 	//Folder Type
-	fType := flag.String("folderType", "3", "1 \\moddate, 2 \\pattern, 3 none")
+	fType := flag.String("folderType", "4", "1 \\moddate, 2 \\pattern, 3 \\pattern\\moddate year, 4 none")
 
 	flag.Parse()
 
@@ -91,20 +91,19 @@ func main() {
 	//Wait for all go routines to finish
 	wg.Wait()
 
-	elapsed := time.Since(start)
-	println("Execution Time: ", elapsed)
-
 	values := map[string]string{"value1": inPath, "value2" : outPath, "value3": Pattern}
 	jsonValue, _ := json.Marshal(values)
 
+	//Notify IFTTT.com custom Maker channel
 	resp, err := http.Post("https://maker.ifttt.com/trigger/Sloth_Notify/with/key/cRoTTDKR6fNC2X1MifxRyW", "application/json", bytes.NewBuffer(jsonValue))
 	if err != nil {
-
+		println(resp.Status)
 	}
 
 	println("Notification Sent to IFTTT.com", resp.Status)
 
-
+	elapsed := time.Since(start)
+	println("Execution Time: ", elapsed.Minutes())
 }
 
 func MoveFiles(inChan chan string) {
@@ -139,17 +138,16 @@ func CreateOutputPath(inPath string, outPath string, fileToMove string) string {
 	}
 
 	var outFolder = ""
+	mTime := fi.ModTime()
+
+	year := C.Itoa(mTime.Year())
+	month := C.Itoa(int(time.Now().Month()))
+	day := "Day " + C.Itoa(mTime.Day())
 
 	switch folderType {
 
 	//1 uses file mod time as the folder
 	case "1":
-		mTime := fi.ModTime()
-
-		year := C.Itoa(mTime.Year())
-		month := C.Itoa(int(time.Now().Month()))
-		day := "Day " + C.Itoa(mTime.Day())
-
 		outFolder = outPath + "\\" + year + "\\" + month + "\\" + day
 
 		return outFolder
@@ -160,8 +158,13 @@ func CreateOutputPath(inPath string, outPath string, fileToMove string) string {
 
 		return outFolder
 
-	//3 will go to the root of defaultOut
+	//3 uses the pattern as the folder and then groups by year
 	case "3":
+		outFolder = outPath + "\\" + Pattern + "\\" + year
+		return outFolder
+
+	//4 will go to the root of defaultOut
+	case "4":
 		outFolder = outPath + "\\"
 
 		return outFolder
