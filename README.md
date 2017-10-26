@@ -9,7 +9,9 @@ Enter values for the following in your os args:<br />
 <ul>
 <li>By modified date (moddate):  1</li>
 <li>By file extension (pattern):  2</li>
-<li>Simple move from folder to folder (none):  3</li>
+<li>By pattern then year:  3</li>
+<li>Simple move from folder to folder (none):  4</li>
+<li>YYYYMM as folder:  5</li>
 </ul>
   
 Example args:<br />
