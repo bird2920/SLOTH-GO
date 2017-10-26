@@ -1,109 +1,120 @@
 package main
 
 import (
-	"flag"
-	"fmt"
+	"bytes"
+	"encoding/json"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
-	"os/user"
+	//"os/user"
+	"fmt"
 	C "strconv"
-	"strings"
 	"sync"
 	"time"
-	"net/http"
-	"encoding/json"
-	"bytes"
 )
 
 var wg sync.WaitGroup
 var readChan chan string
+var name string
 var inPath string
 var outPath string
 var Pattern string
 var folderType string
 
+type Folder struct {
+	Name       string `json:"name"`
+	Input      string `json:"input"`
+	Output     string `json:"output"`
+	Pattern    string `json:"pattern"`
+	FolderType string `json:"folderType"`
+}
+
 func main() {
 	println("SLOTH: GO Edition")
 	println("----------------------")
 	start := time.Now()
-	usr, err := user.Current()
-	if err != nil {
-		log.Fatal(err)
-	}
+	log.Println("Start time:", start)
+	//usr, err := user.Current()
+	//if err != nil {
+	//	log.Println(err)
+	//}
 
-	defaultIn := usr.HomeDir + "\\Downloads"
-	defaultOut := usr.HomeDir + "\\Downloads\\Sloth"
+	folders := getFolders()
+	for _, f := range folders {
+		//do something
+		name = f.Name
+		inPath = f.Input
+		outPath = f.Output
+		Pattern = f.Pattern
+		folderType = f.FolderType
 
-	//InputPath
-	in := flag.String("inPath", defaultIn, "readPath")
-	if in == nil {
+		fmt.Println(name)
+		fmt.Println(inPath, outPath, Pattern, folderType)
 
-	}
+		readChan = make(chan string, 100)
 
-	//OutputPath
-	out := flag.String("outPath", defaultOut, "readPath")
+		files, _ := ioutil.ReadDir(inPath)
+		if err := recover(); err != nil {
+			log.Println(err)
+		}
 
-	//Pattern
-	pattern := flag.String("pattern", "zip", "file search pattern")
+		//Start workers
+		for i := 0; i < 100; i++ {
+			wg.Add(1)
+			go MoveFiles(readChan)
 
-	//Folder Type
-	fType := flag.String("folderType", "4", "1 \\moddate, 2 \\pattern, 3 \\pattern\\moddate year, 4 none")
+		}
 
-	flag.Parse()
-
-	inPath = *in
-	outPath = *out
-	Pattern = *pattern
-	folderType = *fType
-
-	fmt.Println("Input Path: " + inPath)
-	fmt.Println("Output Path: " + outPath)
-	fmt.Println("Pattern: " + strings.ToUpper(Pattern))
-	fmt.Println("Folder Type: " + folderType)
-
-	readChan = make(chan string, 1000)
-
-	//Is the file a file?
-	files, err := ioutil.ReadDir(inPath)
-	if err != nil {
-		println(err.Error())
-	}
-
-	//Start workers
-	for i := 0; i < 1000; i++ {
-		wg.Add(1)
-		go MoveFiles(readChan)
-	}
-
-	//Iterate over each file and move it
-	for _, element := range files {
-		if !element.IsDir() {
-			if string([]byte(element.Name())[len(element.Name())-len(Pattern):]) == Pattern {
-				//Count number of go routines
-				readChan <- element.Name()
+		//Iterate over each file and move it
+		for _, element := range files {
+			if !element.IsDir() {
+				if string([]byte(element.Name())[len(element.Name())-len(Pattern):]) == Pattern {
+					//Count number of go routines
+					readChan <- element.Name()
+					println(element.Name())
+				}
 			}
 		}
+
+		close(readChan)
+
+		//Wait for all go routines to finish
+		wg.Wait()
+
+		notify(inPath, outPath, Pattern)
+
+		elapsed := time.Since(start)
+		println("Execution Time: ", elapsed)
 	}
 
-	close(readChan)
+	//defaultIn := usr.HomeDir + "\\Downloads"
+	//defaultOut := usr.HomeDir + "\\Downloads\\Sloth"
 
-	//Wait for all go routines to finish
-	wg.Wait()
+	////InputPath
+	//in := flag.String("inPath", defaultIn, "readPath")
+	//
+	////OutputPath
+	//out := flag.String("outPath", defaultOut, "readPath")
+	//
+	////Pattern
+	//pattern := flag.String("pattern", "zip", "file search pattern")
+	//
+	////Folder Type
+	//fType := flag.String("folderType", "4", "1 \\moddate, 2 \\pattern, 3 \\pattern\\moddate year, 4 none, 5 \\moddate yyyymm")
+	//
+	//flag.Parse()
+	//
+	//inPath = *in
+	//outPath = *out
+	//Pattern = *pattern
+	//folderType = *fType
+	//
+	//fmt.Println("Input Path: " + inPath)
+	//fmt.Println("Output Path: " + outPath)
+	//fmt.Println("Pattern: " + strings.ToUpper(Pattern))
+	//fmt.Println("Folder Type: " + folderType)
 
-	values := map[string]string{"value1": inPath, "value2" : outPath, "value3": Pattern}
-	jsonValue, _ := json.Marshal(values)
-
-	//Notify IFTTT.com custom Maker channel
-	resp, err := http.Post("https://maker.ifttt.com/trigger/Sloth_Notify/with/key/", "application/json", bytes.NewBuffer(jsonValue))
-	if err != nil {
-		println(resp.Status)
-	}
-
-	println("Notification Sent to IFTTT.com", resp.Status)
-
-	elapsed := time.Since(start)
-	println("Execution Time: ", elapsed.Minutes())
 }
 
 func MoveFiles(inChan chan string) {
@@ -122,8 +133,7 @@ func MoveFiles(inChan chan string) {
 
 		err := os.Rename(in, out)
 		if err != nil {
-			log.Fatal(err)
-			println(err)
+			log.Println(err)
 		}
 	}
 
@@ -134,19 +144,19 @@ func MoveFiles(inChan chan string) {
 func CreateOutputPath(inPath string, outPath string, fileToMove string) string {
 	fi, err := os.Stat(inPath + "\\" + fileToMove)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 
 	var outFolder = ""
 	mTime := fi.ModTime()
 
 	year := C.Itoa(mTime.Year())
-	month := C.Itoa(int(time.Now().Month()))
+	month := C.Itoa(int(mTime.Month()))
 	day := "Day " + C.Itoa(mTime.Day())
 
 	switch folderType {
 
-	//1 uses file mod time as the folder
+	//1 uses file mod time as the folder YYYY\MM\Day DD format
 	case "1":
 		outFolder = outPath + "\\" + year + "\\" + month + "\\" + day
 
@@ -169,7 +179,39 @@ func CreateOutputPath(inPath string, outPath string, fileToMove string) string {
 
 		return outFolder
 
+	//5 uses mod time as the folder in YYYYMM format
+	case "5":
+		month = "0" + month
+		month = month[len(month)-2:]
+		outFolder = outPath + "\\" + year + month
+
+		return outFolder
 	default:
 		return ""
 	}
+}
+
+func getFolders() []Folder {
+	raw, err := ioutil.ReadFile("config.json")
+	if err != nil {
+		fmt.Println("getFolders -", err.Error())
+		os.Exit(1)
+	}
+
+	var c []Folder
+	json.Unmarshal(raw, &c)
+	return c
+}
+
+func notify(inPath, outPath, Pattern string) {
+	values := map[string]string{"value1": inPath, "value2": outPath, "value3": Pattern}
+	jsonValue, _ := json.Marshal(values)
+
+	//Notify IFTTT.com custom Maker channel
+	resp, err := http.Post("https://maker.ifttt.com/trigger/Sloth_Notify/with/key/cRoTTDKR6fNC2X1MifxRyW", "application/json", bytes.NewBuffer(jsonValue))
+	if err != nil {
+		log.Println(resp.Status)
+	}
+
+	println("Notification Sent to IFTTT.com", resp.Status)
 }
