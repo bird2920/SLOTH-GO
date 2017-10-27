@@ -39,8 +39,3 @@ Enter values for the following in your config.json:<br />
 <li>Simple move from folder to folder (none):  4</li>
 <li>YYYYMM as folder:  5</li>
 </ul>
-  
-Example args:<br />
-<i>-inPath="C:\Users\userfolder\Downloads" -outPath="C:\Users\userfolder\Pictures" -pattern="jpg" -ftype="2"</i><br />
-This will create a "jpg" folder in Pictures. Example: C:\Users\userfolder\Pictures\jpg<br />
-  Then it will move all txt files from downloads to downloads\archive\txt<br />
