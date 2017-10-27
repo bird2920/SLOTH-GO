@@ -8,43 +8,29 @@ Enter values for the following in your config.json:<br />
 <strong>Folder Type:</strong> What output file structure to create in your output path<br />
 <strong>Example json below</strong><br />
 <code>
-[
-        {
-          "name": "Files By Type - Zip",
-          "input": "C:\\Users\\Richardbi\\Downloads",
-          "output": "C:\\Users\\Richardbi\\Documents\\Files By Type\\zip",
-          "pattern": "zip",
-          "folderType": "4"
-        },
-        {
-          "name": "Files By Type - pdf",
-          "input": "C:\\Users\\Richardbi\\Downloads",
-          "output": "C:\\Users\\Richardbi\\Documents\\Files By Type\\pdf",
-          "pattern": "pdf",
-          "folderType": "4"
-        },
-        {
-          "name": "Pictures - jpg",
-          "input": "C:\\Users\\Richardbi\\Downloads",
-          "output": "C:\\Users\\Richardbi\\Pictures\\jpg",
-          "pattern": "jpg",
-          "folderType": "4"
-        },
-        {
-          "name": "EFS Files",
-          "input": "G:\\Pubfiles\\Ops Support\\Fuel\\EFSFTPData\\Processed",
-          "output": "G:\\Pubfiles\\Ops Support\\Fuel\\EFSFTPData\\Archive",
-          "pattern": "txt",
-          "folderType": "1"
-        },
-        {
-          "name": "Fourkites Files",
-          "input": "\\\\CRE-EXTOL\\EBICustom\\Ftp\\FourKites\\Out\\Archive",
-          "output": "\\\\CRE-EXTOL\\EBICustom\\Ftp\\FourKites\\Out\\Archive",
-          "pattern": "csv",
-          "folderType": "1"
-        }
-      ]
+[<br />
+        {<br />
+          "name": "Files By Type - Zip",<br />
+          "input": "C:\\somepath\\processed",<br />
+          "output": "C:\\somepath\\archive",<br />
+          "pattern": "zip",<br />
+          "folderType": "4"<br />
+        },<br />
+        {<br />
+          "name": "Files By Type - pdf",<br />
+          "input": "C:\\somepath\\processed",<br />
+          "output": "C:\\somepath\\archive",<br />
+          "pattern": "pdf",<br />
+          "folderType": "4"<br />
+        },<br />
+        {<br />
+          "name": "Pictures - jpg",<br />
+          "input": "C:\\somepath\\processed",<br />
+          "output": "C:\\somepath\\archive",<br />
+          "pattern": "jpg",<br />
+          "folderType": "4"<br />
+        }<br />
+]<br />
       </code>
 <ul>
 <li>By modified date (moddate):  1</li>
