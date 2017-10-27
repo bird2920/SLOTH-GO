@@ -3,12 +3,11 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	//"os/user"
-	"fmt"
 	C "strconv"
 	"sync"
 	"time"
@@ -35,22 +34,18 @@ func main() {
 	println("----------------------")
 	start := time.Now()
 	log.Println("Start time:", start)
-	//usr, err := user.Current()
-	//if err != nil {
-	//	log.Println(err)
-	//}
 
 	folders := getFolders()
+
 	for _, f := range folders {
-		//do something
 		name = f.Name
 		inPath = f.Input
 		outPath = f.Output
 		Pattern = f.Pattern
 		folderType = f.FolderType
 
-		fmt.Println(name)
-		fmt.Println(inPath, outPath, Pattern, folderType)
+		//fmt.Println(name)
+		//fmt.Println(inPath, outPath, Pattern, folderType)
 
 		readChan = make(chan string, 100)
 
@@ -63,7 +58,6 @@ func main() {
 		for i := 0; i < 100; i++ {
 			wg.Add(1)
 			go MoveFiles(readChan)
-
 		}
 
 		//Iterate over each file and move it
@@ -72,7 +66,7 @@ func main() {
 				if string([]byte(element.Name())[len(element.Name())-len(Pattern):]) == Pattern {
 					//Count number of go routines
 					readChan <- element.Name()
-					println(element.Name())
+					//println(element.Name())
 				}
 			}
 		}
@@ -82,39 +76,11 @@ func main() {
 		//Wait for all go routines to finish
 		wg.Wait()
 
-		notify(inPath, outPath, Pattern)
+		//notify(inPath, outPath, Pattern)
 
 		elapsed := time.Since(start)
-		println("Execution Time: ", elapsed)
+		fmt.Printf("Execution Time: %.2f seconds to run %s\n", elapsed.Seconds(), name)
 	}
-
-	//defaultIn := usr.HomeDir + "\\Downloads"
-	//defaultOut := usr.HomeDir + "\\Downloads\\Sloth"
-
-	////InputPath
-	//in := flag.String("inPath", defaultIn, "readPath")
-	//
-	////OutputPath
-	//out := flag.String("outPath", defaultOut, "readPath")
-	//
-	////Pattern
-	//pattern := flag.String("pattern", "zip", "file search pattern")
-	//
-	////Folder Type
-	//fType := flag.String("folderType", "4", "1 \\moddate, 2 \\pattern, 3 \\pattern\\moddate year, 4 none, 5 \\moddate yyyymm")
-	//
-	//flag.Parse()
-	//
-	//inPath = *in
-	//outPath = *out
-	//Pattern = *pattern
-	//folderType = *fType
-	//
-	//fmt.Println("Input Path: " + inPath)
-	//fmt.Println("Output Path: " + outPath)
-	//fmt.Println("Pattern: " + strings.ToUpper(Pattern))
-	//fmt.Println("Folder Type: " + folderType)
-
 }
 
 func MoveFiles(inChan chan string) {
