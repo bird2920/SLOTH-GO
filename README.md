@@ -6,7 +6,7 @@ Enter values for the following in your config.json:<br />
 <strong>Output Path:</strong> The path of where you want the files to move to<br />
 <strong>Pattern:</strong> The file extension to search for (csv, docx, txt, xls, zip, etc (all extensions supported))<br />
 <strong>Folder Type:</strong> What output file structure to create in your output path<br />
-<strong>Example json below</strong><br />
+<i>Example json below</i><br />
 <code>
 [<br />
         {<br />
