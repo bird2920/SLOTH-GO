@@ -1,16 +1,15 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	C "strconv"
 	"sync"
 	"time"
+	N "IFTTT/notify"
 )
 
 var wg sync.WaitGroup
@@ -30,8 +29,8 @@ type Folder struct {
 }
 
 func main() {
-	println("SLOTH: GO Edition")
-	println("----------------------")
+	header()
+
 	start := time.Now()
 	log.Println("Start time:", start)
 
@@ -76,7 +75,7 @@ func main() {
 		//Wait for all go routines to finish
 		wg.Wait()
 
-		//notify(inPath, outPath, Pattern)
+		N.Notify("https://maker.ifttt.com/trigger/Sloth_Notify/with/key/bhhXR_IRBjXQxQPOgI0Q7b","application/json",name,outPath,Pattern)
 
 		elapsed := time.Since(start)
 		fmt.Printf("Execution Time: %.2f seconds to run %s\n", elapsed.Seconds(), name)
@@ -169,15 +168,7 @@ func getFolders() []Folder {
 	return c
 }
 
-func notify(inPath, outPath, Pattern string) {
-	values := map[string]string{"value1": inPath, "value2": outPath, "value3": Pattern}
-	jsonValue, _ := json.Marshal(values)
-
-	//Notify IFTTT.com custom Maker channel
-	resp, err := http.Post("https://maker.ifttt.com/trigger/Sloth_Notify/with/key/cRoTTDKR6fNC2X1MifxRyW", "application/json", bytes.NewBuffer(jsonValue))
-	if err != nil {
-		log.Println(resp.Status)
-	}
-
-	println("Notification Sent to IFTTT.com", resp.Status)
+func header(){
+	println("SLOTH: GO Edition")
+	println("----------------------")
 }
