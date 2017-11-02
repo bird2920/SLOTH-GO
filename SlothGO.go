@@ -1,6 +1,7 @@
 package main
 
 import (
+	N "IFTTT/notify"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -9,7 +10,6 @@ import (
 	C "strconv"
 	"sync"
 	"time"
-	N "IFTTT/notify"
 )
 
 var wg sync.WaitGroup
@@ -17,10 +17,10 @@ var readChan chan string
 var name string
 var inPath string
 var outPath string
-var Pattern string
+var pattern string
 var folderType string
 
-type Folder struct {
+type folder struct {
 	Name       string `json:"name"`
 	Input      string `json:"input"`
 	Output     string `json:"output"`
@@ -40,7 +40,7 @@ func main() {
 		name = f.Name
 		inPath = f.Input
 		outPath = f.Output
-		Pattern = f.Pattern
+		pattern = f.Pattern
 		folderType = f.FolderType
 
 		//fmt.Println(name)
@@ -56,13 +56,13 @@ func main() {
 		//Start workers
 		for i := 0; i < 100; i++ {
 			wg.Add(1)
-			go MoveFiles(readChan)
+			go moveFiles(readChan)
 		}
 
 		//Iterate over each file and move it
 		for _, element := range files {
 			if !element.IsDir() {
-				if string([]byte(element.Name())[len(element.Name())-len(Pattern):]) == Pattern {
+				if string([]byte(element.Name())[len(element.Name())-len(pattern):]) == pattern {
 					//Count number of go routines
 					readChan <- element.Name()
 					//println(element.Name())
@@ -75,21 +75,21 @@ func main() {
 		//Wait for all go routines to finish
 		wg.Wait()
 
-		N.Notify("https://maker.ifttt.com/trigger/Sloth_Notify/with/key/bhhXR_IRBjXQxQPOgI0Q7b","application/json",name,outPath,Pattern)
+		N.Notify("https://maker.ifttt.com/trigger/Sloth_Notify/with/key/bhhXR_IRBjXQxQPOgI0Q7b", "application/json", name, outPath, pattern)
 
 		elapsed := time.Since(start)
 		fmt.Printf("Execution Time: %.2f seconds to run %s\n", elapsed.Seconds(), name)
 	}
 }
 
-func MoveFiles(inChan chan string) {
+func moveFiles(inChan chan string) {
 
 	for fileToMove := range inChan {
 
 		//Input file
 		in := inPath + "\\" + fileToMove
 
-		outFolder := CreateOutputPath(inPath, outPath, fileToMove)
+		outFolder := createOutputPath(inPath, outPath, fileToMove)
 
 		out := outFolder + "\\" + fileToMove
 
@@ -106,7 +106,7 @@ func MoveFiles(inChan chan string) {
 	wg.Done()
 }
 
-func CreateOutputPath(inPath string, outPath string, fileToMove string) string {
+func createOutputPath(inPath string, outPath string, fileToMove string) string {
 	fi, err := os.Stat(inPath + "\\" + fileToMove)
 	if err != nil {
 		log.Println(err)
@@ -127,24 +127,24 @@ func CreateOutputPath(inPath string, outPath string, fileToMove string) string {
 
 		return outFolder
 
-	//2 uses the pattern as the folder
+		//2 uses the pattern as the folder
 	case "2":
-		outFolder = outPath + "\\" + Pattern
+		outFolder = outPath + "\\" + pattern
 
 		return outFolder
 
-	//3 uses the pattern as the folder and then groups by year
+		//3 uses the pattern as the folder and then groups by year
 	case "3":
-		outFolder = outPath + "\\" + Pattern + "\\" + year
+		outFolder = outPath + "\\" + pattern + "\\" + year
 		return outFolder
 
-	//4 will go to the root of defaultOut
+		//4 will go to the root of defaultOut
 	case "4":
 		outFolder = outPath + "\\"
 
 		return outFolder
 
-	//5 uses mod time as the folder in YYYYMM format
+		//5 uses mod time as the folder in YYYYMM format
 	case "5":
 		month = "0" + month
 		month = month[len(month)-2:]
@@ -156,19 +156,19 @@ func CreateOutputPath(inPath string, outPath string, fileToMove string) string {
 	}
 }
 
-func getFolders() []Folder {
+func getFolders() []folder {
 	raw, err := ioutil.ReadFile("config.json")
 	if err != nil {
 		fmt.Println("getFolders -", err.Error())
 		os.Exit(1)
 	}
 
-	var c []Folder
+	var c []folder
 	json.Unmarshal(raw, &c)
 	return c
 }
 
-func header(){
+func header() {
 	println("SLOTH: GO Edition")
 	println("----------------------")
 }
