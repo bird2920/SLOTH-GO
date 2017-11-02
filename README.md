@@ -1,5 +1,5 @@
 # SLOTH-GO
-<h2>Same as the original, but written in GO</h2>
+<h2>Fast file mover - Written in Go</h2>
 
 Enter values for the following in your config.json:<br />
 <strong>Input Path:</strong> The path of the files you want to move<br />
