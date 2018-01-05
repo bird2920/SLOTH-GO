@@ -1,0 +1,72 @@
+[
+  {
+    "name": "Files By Type - Zip",
+    "input": "C:\\Users\\Richardbi\\Downloads",
+    "output": "C:\\Users\\Richardbi\\Documents\\Files By Type\\zip",
+    "pattern": "zip",
+    "folderType": "4"
+  },
+  {
+    "name": "Files By Type - pdf",
+    "input": "C:\\Users\\Richardbi\\Downloads",
+    "output": "C:\\Users\\Richardbi\\Documents\\Files By Type\\pdf",
+    "pattern": "pdf",
+    "folderType": "4"
+  },
+  {
+    "name": "Pictures - jpg",
+    "input": "C:\\Users\\Richardbi\\Downloads",
+    "output": "C:\\Users\\Richardbi\\Pictures\\jpg",
+    "pattern": "jpg",
+    "folderType": "4"
+  },
+  {
+    "name": "EFS Files",
+    "input": "G:\\Pubfiles\\Ops Support\\Fuel\\EFSFTPData\\Processed",
+    "output": "G:\\Pubfiles\\Ops Support\\Fuel\\EFSFTPData\\Archive",
+    "pattern": "txt",
+    "folderType": "1"
+  },
+  {
+    "name": "Fourkites Files",
+    "input": "\\\\CRE-EXTOL\\EBICustom\\Ftp\\FourKites\\Out\\Archive",
+    "output": "\\\\CRE-EXTOL\\EBICustom\\Ftp\\FourKites\\Out\\Archive",
+    "pattern": "csv",
+    "folderType": "1"
+  },
+  {
+    "name": "TripPak Logs",
+    "input": "\\\\cre-bmiinvoice\\E$\\TripPak Enterprise\\ArchiveFiles",
+    "output": "\\\\cre-bmiinvoice\\E$\\TripPak Enterprise\\ArchiveFiles",
+    "pattern": "txt",
+    "folderType": "1"
+  },
+  {
+    "name": "McLeod i2i_e_drr backups",
+    "input": "\\\\cre-mcleodstrg\\E$\\tm\\tmsimg\\imports\\i2i_e_drr\\backup",
+    "output": "\\\\cre-mcleodstrg\\E$\\tm\\tmsimg\\imports\\i2i_e_drr\\backup\\archive",
+    "pattern": "csv",
+    "folderType": "1"
+  },
+  {
+    "name": "McLeod i2i_e_car backups",
+    "input": "\\\\cre-mcleodstrg\\E$\\tm\\tmsimg\\imports\\i2i_e_car\\backup",
+    "output": "\\\\cre-mcleodstrg\\E$\\tm\\tmsimg\\imports\\i2i_e_car\\backup\\archive",
+    "pattern": "csv",
+    "folderType": "1"
+  },
+    {
+    "name": "McLeod i2i_e_cus backups",
+    "input": "\\\\cre-mcleodstrg\\E$\\tm\\tmsimg\\imports\\i2i_e_cus\\backup",
+    "output": "\\\\cre-mcleodstrg\\E$\\tm\\tmsimg\\imports\\i2i_e_cus\\backup\\archive",
+    "pattern": "csv",
+    "folderType": "1"
+  },
+  {
+    "name": "Pubfiles Stragglers - PDFs",
+    "input": "\\\\crefs\\vol2$\\Pubfiles\\RTSD\\Recruiting\\Internet Applications\\Internet_apps",
+    "output": "\\\\crefs\\vol2$\\Pubfiles\\RTSD\\Recruiting\\Internet Applications\\Internet_apps",
+    "pattern": "pdf",
+    "folderType": "5"
+  }
+]

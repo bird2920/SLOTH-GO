@@ -168,7 +168,8 @@ func getFolders() []folder {
 	return c
 }
 
-func header() {
+func header() string {
 	println("SLOTH: GO Edition")
 	println("----------------------")
+	return ""
 }

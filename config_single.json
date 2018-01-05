@@ -1,0 +1,10 @@
+[
+{
+    "name": "Pubfiles Stragglers - PDFs",
+    "input": "\\\\crefs\\vol2$\\Pubfiles\\RTSD\\Recruiting\\Internet Applications\\Internet_apps",
+    "output": "\\\\crefs\\vol2$\\Pubfiles\\RTSD\\Recruiting\\Internet Applications\\Internet_apps",
+    "pattern": "pdf",
+    "folderType": "5"
+  
+ }
+ ]
