@@ -1,7 +1,7 @@
 package main
 
 import (
-	N "IFTTT/notify"
+	//N "IFTTT/notify"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -75,7 +75,7 @@ func main() {
 		//Wait for all go routines to finish
 		wg.Wait()
 
-		N.Notify("https://maker.ifttt.com/trigger/Sloth_Notify/with/key/bhhXR_IRBjXQxQPOgI0Q7b", "application/json", name, outPath, pattern)
+		//N.Notify("https://maker.ifttt.com/trigger/Sloth_Notify/with/key/bhhXR_IRBjXQxQPOgI0Q7b", "application/json", name, outPath, pattern)
 
 		elapsed := time.Since(start)
 		fmt.Printf("Execution Time: %.2f seconds to run %s\n", elapsed.Seconds(), name)
