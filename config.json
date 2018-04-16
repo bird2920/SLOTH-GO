@@ -68,5 +68,12 @@
     "output": "\\\\crefs\\vol2$\\Pubfiles\\RTSD\\Recruiting\\Internet Applications\\Internet_apps",
     "pattern": "pdf",
     "folderType": "5"
+  },
+  {
+    "name": "LoadMaster Archive - PDFs",
+    "input": "\\\\loadmaster\\vendorupload\\imaging\\archive",
+    "output": "\\\\loadmaster\\vendorupload\\imaging\\archive",
+    "pattern": "pdf",
+    "folderType": "1"
   }
 ]

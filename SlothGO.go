@@ -35,6 +35,7 @@ func main() {
 	log.Println("Start time:", start)
 
 	folders := getFolders()
+	elapsed := time.Since(start)
 
 	for _, f := range folders {
 		name = f.Name
@@ -77,9 +78,18 @@ func main() {
 
 		//N.Notify("https://maker.ifttt.com/trigger/Sloth_Notify/with/key/bhhXR_IRBjXQxQPOgI0Q7b", "application/json", name, outPath, pattern)
 
-		elapsed := time.Since(start)
-		fmt.Printf("Execution Time: %.2f seconds to run %s\n", elapsed.Seconds(), name)
+		elapsed = time.Since(start)
+		fmt.Printf("Executed: %s\n", name)
+
+		//fmt.Println("Hold for 1 minute for next folder.")
+		//delayMinute(1)
 	}
+
+	fmt.Printf("Total execution time: %.2f seconds.", elapsed.Seconds())
+}
+
+func delayMinute(n time.Duration) {
+	time.Sleep(n * time.Minute)
 }
 
 func moveFiles(inChan chan string) {
