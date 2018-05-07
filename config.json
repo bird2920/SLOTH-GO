@@ -75,5 +75,12 @@
     "output": "\\\\loadmaster\\vendorupload\\imaging\\archive",
     "pattern": "pdf",
     "folderType": "1"
+  },
+  {
+	"name": "BMIInvoice ArchiveFiles",
+    "input": "\\\\cre-bmiinvoice\\E$\\TripPak Enterprise\\ArchiveFiles",
+    "output": "\\\\cre-bmiinvoice\\E$\\TripPak Enterprise\\ArchiveFiles",
+    "pattern": "txt",
+    "folderType": "1"
   }
 ]
