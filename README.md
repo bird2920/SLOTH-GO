@@ -4,7 +4,7 @@
 Enter values for the following in your config.json:<br />
 <strong>Input Path:</strong> The path of the files you want to move<br />
 <strong>Output Path:</strong> The path of where you want the files to move to<br />
-<strong>Pattern:</strong> The file extension to search for (csv, docx, txt, xls, zip, etc (all extensions supported))<br />
+<strong>Extension:</strong> The file extension to search for (csv, docx, txt, xls, zip, etc (all extensions supported))<br />
 <strong>Folder Type:</strong> What output file structure to create in your output path<br />
 <i>Example json below</i><br />
 <code>
