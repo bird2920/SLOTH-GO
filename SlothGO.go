@@ -84,7 +84,7 @@ func main() {
 		fmt.Printf("Executed: %s\n", name)
 	}
 
-	fmt.Printf("Total execution time: %.2f seconds.", elapsed.Seconds())
+	fmt.Printf("Total execution time: %.3f seconds.", elapsed.Seconds())
 }
 
 // func delayMinute(n time.Duration) {
