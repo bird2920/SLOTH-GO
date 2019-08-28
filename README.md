@@ -12,30 +12,30 @@ Enter values for the following in your config.json:<br />
         {<br />
           "name": "Files By Type - Zip",<br />
           "input": "C:\\somepath\\processed",<br />
-          "output": "C:\\somepath\\archive",<br />
-          "pattern": "zip",<br />
+          "output": ["C:\\somepath\\archive"],<br />
+          "extension": "zip",<br />
           "folderType": "4"<br />
         },<br />
         {<br />
           "name": "Files By Type - pdf",<br />
           "input": "C:\\somepath\\processed",<br />
-          "output": "C:\\somepath\\archive",<br />
-          "pattern": "pdf",<br />
+          "output": ["C:\\somepath\\archive"],<br />
+          "extension": "pdf",<br />
           "folderType": "4"<br />
         },<br />
         {<br />
           "name": "Pictures - jpg",<br />
           "input": "C:\\somepath\\processed",<br />
-          "output": "C:\\somepath\\archive",<br />
-          "pattern": "jpg",<br />
+          "output": ["C:\\somepath\\archive"],<br />
+          "extension": "jpg",<br />
           "folderType": "4"<br />
         }<br />
 ]<br />
       </code>
 <ul>
 <li>By modified date (moddate):  1</li>
-<li>By file extension (pattern):  2</li>
-<li>By pattern then year:  3</li>
+<li>By file extension (extension):  2</li>
+<li>By extension then year:  3</li>
 <li>Simple move from folder to folder (none):  4</li>
 <li>YYYYMM as folder:  5</li>
 </ul>
