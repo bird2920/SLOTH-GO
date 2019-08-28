@@ -132,13 +132,11 @@ func createOutputPath(inPath string, outPath string, fileToMove string) string {
 	//1 uses file mod time as the folder YYYY\MM\Day DD format
 	case "1":
 		outFolder = filepath.Join(outPath, year, month, day)
-
 		return outFolder
 
 		//2 uses the extension as the folder
 	case "2":
 		outFolder = filepath.Join(outPath, ext[1])
-
 		return outFolder
 
 		//3 uses the extension as the folder and then groups by year
@@ -149,16 +147,13 @@ func createOutputPath(inPath string, outPath string, fileToMove string) string {
 		//4 will go to the root of defaultOut - ie moves files to the root of the output path
 	case "4":
 		outFolder = filepath.Join(outPath)
-
 		return outFolder
 
 		//5 uses mod time as the folder in YYYYMM format
 	case "5":
-		month = "0" + month
-		month = month[len(month)-2:]
-		outFolder = filepath.Join(outPath, year+month)
-
+		outFolder = filepath.Join(outPath, mTime.Format("200601"))
 		return outFolder
+
 	default:
 		return ""
 	}
