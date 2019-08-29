@@ -172,6 +172,6 @@ func getFolders() []folder {
 }
 
 func header() {
-	println("Sloth running")
+	println("Sloth: Running")
 	println("----------------------")
 }
