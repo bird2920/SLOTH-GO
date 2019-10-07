@@ -13,13 +13,15 @@ import (
 	"time"
 )
 
-var wg sync.WaitGroup
-var readChan chan string
-var name string
-var inPath string
-var outPath []string
-var extension string
-var folderType string
+var (
+	wg         sync.WaitGroup
+	readChan   chan string
+	name       string
+	inPath     string
+	outPath    []string
+	extension  string
+	folderType string
+)
 
 type folder struct {
 	Name       string   `json:"name"`
@@ -37,7 +39,11 @@ func main() {
 	start := time.Now()
 	log.Println("Start time:", start)
 
-	folders := getFolders()
+	folders, err := getFolders()
+	if err != nil {
+		log.Fatal("error getting folders", err)
+	}
+
 	elapsed := time.Since(start)
 
 	for _, f := range folders {
@@ -56,20 +62,19 @@ func main() {
 
 		const numWorkers = 4
 
-		//Start workers
+		// Start workers
 		fmt.Println("Starting", numWorkers, "Workers")
 		wg.Add(numWorkers)
 		for i := 0; i < numWorkers; i++ {
 			go moveFiles(balancer, readChan)
 		}
 
-		//Iterate over each file and move it
+		// Iterate over each file and move it
 		for _, element := range files {
 			if !element.IsDir() {
 				if filepath.Ext(element.Name()) == extension || extension == "" {
-					//Count number of go routines
+					// Count number of go routines
 					readChan <- element.Name()
-					//println(element.Name())
 				}
 			}
 		}
@@ -77,7 +82,7 @@ func main() {
 		// notify readChan that no more messages are coming to avoid deadlock
 		close(readChan)
 
-		//Wait for all go routines to finish
+		// Wait for all go routines to finish
 		wg.Wait()
 
 		elapsed = time.Since(start)
@@ -87,25 +92,24 @@ func main() {
 	fmt.Printf("Total execution time: %.3f seconds.", elapsed.Seconds())
 }
 
-// func delayMinute(n time.Duration) {
-// 	time.Sleep(n * time.Minute)
-// }
-
 func moveFiles(b *Balancer, inChan chan string) {
 
 	for fileToMove := range inChan {
-		//Input file
+		// Input file
 		in := filepath.Join(inPath, fileToMove)
 		balOut := b.Next(outPath)
 
 		outFolder := createOutputPath(inPath, balOut, fileToMove)
 		out := filepath.Join(outFolder, fileToMove)
 
-		os.MkdirAll(outFolder, 0755)
-
-		err := os.Rename(in, out)
+		err := os.MkdirAll(outFolder, 0755)
 		if err != nil {
-			log.Println(err)
+			log.Printf("error making folder %s\n", outFolder)
+		}
+
+		err = os.Rename(in, out)
+		if err != nil {
+			log.Printf("error renaming %s to %s", in, out)
 		}
 	}
 
@@ -129,27 +133,27 @@ func createOutputPath(inPath string, outPath string, fileToMove string) string {
 
 	switch folderType {
 
-	//1 uses file mod time as the folder YYYY\MM\Day DD format
+	// 1 uses file mod time as the folder YYYY\MM\Day DD format
 	case "1":
 		outFolder = filepath.Join(outPath, year, month, day)
 		return outFolder
 
-	//2 uses the extension as the folder
+	// 2 uses the extension as the folder
 	case "2":
 		outFolder = filepath.Join(outPath, ext[1])
 		return outFolder
 
-	//3 uses the extension as the folder and then groups by year
+	// 3 uses the extension as the folder and then groups by year
 	case "3":
 		outFolder = filepath.Join(outPath, ext[1], year)
 		return outFolder
 
-	//4 will go to the root of defaultOut - ie moves files to the root of the output path
+	// 4 will go to the root of defaultOut - ie moves files to the root of the output path
 	case "4":
 		outFolder = filepath.Join(outPath)
 		return outFolder
 
-	//5 uses mod time as the folder in YYYYMM format
+	// 5 uses mod time as the folder in YYYYMM format
 	case "5":
 		outFolder = filepath.Join(outPath, mTime.Format("200601"))
 		return outFolder
@@ -159,16 +163,19 @@ func createOutputPath(inPath string, outPath string, fileToMove string) string {
 	}
 }
 
-func getFolders() []folder {
+func getFolders() ([]folder, error) {
 	raw, err := ioutil.ReadFile("config.json")
 	if err != nil {
-		fmt.Println("getFolders -", err.Error())
-		os.Exit(1)
+		return nil, err
 	}
 
 	var c []folder
-	json.Unmarshal(raw, &c)
-	return c
+	err = json.Unmarshal(raw, &c)
+	if err != nil {
+		return nil, err
+	}
+
+	return c, nil
 }
 
 func header() {
