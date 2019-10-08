@@ -9,7 +9,7 @@ import (
 )
 
 func TestGetFolders(t *testing.T) {
-	got := getFolders()
+	got, _ := getFolders()
 
 	if got == nil {
 		t.Errorf("empty return: got %s, want folder path", got)
