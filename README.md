@@ -13,21 +13,21 @@ Enter values for the following in your config.json:<br />
           "name": "Files By Type - Zip",<br />
           "input": "C:\\somepath\\processed",<br />
           "output": ["C:\\somepath\\archive"],<br />
-          "extension": "zip",<br />
+          "extension": ".zip",<br />
           "folderType": "4"<br />
         },<br />
         {<br />
           "name": "Files By Type - pdf",<br />
           "input": "C:\\somepath\\processed",<br />
           "output": ["C:\\somepath\\archive"],<br />
-          "extension": "pdf",<br />
+          "extension": ".pdf",<br />
           "folderType": "4"<br />
         },<br />
         {<br />
           "name": "Pictures - jpg",<br />
           "input": "C:\\somepath\\processed",<br />
           "output": ["C:\\somepath\\archive"],<br />
-          "extension": "jpg",<br />
+          "extension": ".jpg",<br />
           "folderType": "4"<br />
         }<br />
 ]<br />
