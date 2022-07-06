@@ -1,9 +1,9 @@
 [
   {
-    "name": "Test Extension",
-    "input": "/Users/richardbi/Downloads",
-    "output": ["/Users/richardbi/Downloads/Archive"],
-    "extension": "",
-    "folderType": "5"
+    "name": "Test Delete",
+    "input": "/Users/richardbi/Downloads/TestSloth",
+    "output": ["/Users/richardbi/Downloads/TestSloth/Archive"],
+    "extension": "pdf",
+    "folderType": "Delete"
   }
 ]

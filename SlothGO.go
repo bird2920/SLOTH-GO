@@ -158,6 +158,11 @@ func createOutputPath(inPath string, outPath string, fileToMove string) string {
 		outFolder = filepath.Join(outPath, mTime.Format("200601"))
 		return outFolder
 
+	// Delete removes the files in the specified folder
+	case "Delete":
+		removeFiles(fileToMove)
+		return ""
+
 	default:
 		return ""
 	}
@@ -176,6 +181,13 @@ func getFolders() ([]folder, error) {
 	}
 
 	return c, nil
+}
+
+func removeFiles(fileToDelete string) {
+	e := os.Remove(fileToDelete)
+	if e != nil {
+		log.Fatal(e)
+	}
 }
 
 func header() {
