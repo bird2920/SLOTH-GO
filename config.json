@@ -4,14 +4,15 @@
     "input": "/Users/richardbi/Downloads/TestSloth",
     "output": ["/Users/richardbi/Downloads/TestSloth/Archive"],
     "extension": ".pdf",
-    "folderType": "1"
+    "folderType": "1",
+    "removeOlderThan": 0
   },
   {
     "name": "Test Delete",
     "input": "/Users/richardbi/Downloads/TestSloth/Archive",
-    "output": [""],
+    "output": ["/Users/richardbi/Downloads/TestSloth/Archive"],
     "extension": ".pdf",
     "folderType": "delete",
-    "removeOlderThan": "30"
+    "removeOlderThan": 60
   }
 ]

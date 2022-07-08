@@ -52,8 +52,8 @@ func main() {
 
 		readChan = make(chan string, 100)
 
-		if folderType == "delete" {
-			log.Printf("Deleting files older than %d days from %s", f.RemoveOlderThan, inPath)
+		if folderType == "delete" && removeOlderThan > 0 && inPath != "" {
+			log.Printf("Deleting files older than %d days from %s", removeOlderThan, inPath)
 			deleteFiles(inPath, extension, removeOlderThan)
 		}
 
@@ -106,11 +106,11 @@ func deleteFiles(inPath, extension string, removeOlderThan int) {
 			return err
 		}
 		if file.IsDir() {
-			//Remove directories that are empty
-			if err := os.Remove(filepath.Dir(path)); err != nil {
-				return err
-			}
-			log.Print("Deleted: ", filepath.Dir(path))
+			// //Remove directories that are empty
+			// if err := os.Remove(filepath.Dir(path)); err != nil {
+			// 	return err
+			// }
+			// log.Print("Deleted: ", filepath.Dir(path))
 
 			return nil
 		}
@@ -193,6 +193,10 @@ func createOutputPath(inPath string, outPath string, fileToMove string) string {
 	case "5":
 		outFolder = filepath.Join(outPath, mTime.Format("200601"))
 		return outFolder
+
+	case "delete":
+		log.Println("folderType is delete")
+		return ""
 
 	default:
 		return ""
