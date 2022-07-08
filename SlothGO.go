@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	C "strconv"
 	"strings"
 	"sync"
@@ -22,11 +23,12 @@ var extension string
 var folderType string
 
 type folder struct {
-	Name       string   `json:"name"`
-	Input      string   `json:"input"`
-	Output     []string `json:"output"`
-	Extension  string   `json:"extension"`
-	FolderType string   `json:"folderType"`
+	Name            string   `json:"name"`
+	Input           string   `json:"input"`
+	Output          []string `json:"output"`
+	Extension       string   `json:"extension"`
+	FolderType      string   `json:"folderType"`
+	RemoveOlderThan int      `json:"removeOlderThan"`
 }
 
 func main() {
@@ -46,15 +48,21 @@ func main() {
 		outPath = f.Output
 		extension = f.Extension
 		folderType = f.FolderType
+		removeOlderThan := f.RemoveOlderThan
 
 		readChan = make(chan string, 100)
+
+		if folderType == "delete" {
+			log.Printf("Deleting files older than %d days from %s", f.RemoveOlderThan, inPath)
+			deleteFiles(inPath, extension, removeOlderThan)
+		}
 
 		files, err := ioutil.ReadDir(inPath)
 		if err != nil {
 			log.Println(err)
 		}
 
-		const numWorkers = 4
+		var numWorkers = 2 * runtime.GOMAXPROCS(0)
 
 		//Start workers
 		fmt.Println("Starting", numWorkers, "Workers")
@@ -90,6 +98,38 @@ func main() {
 // func delayMinute(n time.Duration) {
 // 	time.Sleep(n * time.Minute)
 // }
+
+//deleteFiles using filepath.Walk
+func deleteFiles(inPath, extension string, removeOlderThan int) {
+	e := filepath.Walk(inPath, func(path string, file os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if file.IsDir() {
+			//Remove directories that are empty
+			if err := os.Remove(filepath.Dir(path)); err != nil {
+				return err
+			}
+			log.Print("Deleted: ", filepath.Dir(path))
+
+			return nil
+		}
+		if filepath.Ext(file.Name()) == extension && file.ModTime().Before(time.Now().AddDate(0, 0, -1*removeOlderThan)) {
+			err = os.Remove(path)
+			if err != nil {
+				return err
+			}
+			log.Print("Deleted: ", path)
+
+			return nil
+		}
+		return nil
+	})
+
+	if e != nil {
+		log.Println(e)
+	}
+}
 
 func moveFiles(b *Balancer, inChan chan string) {
 

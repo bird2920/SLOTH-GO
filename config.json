@@ -11,6 +11,7 @@
     "input": "/Users/richardbi/Downloads/TestSloth/Archive",
     "output": [""],
     "extension": ".pdf",
-    "folderType": "delete"
+    "folderType": "delete",
+    "removeOlderThan": "30"
   }
 ]
