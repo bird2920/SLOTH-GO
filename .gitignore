@@ -1,3 +1,35 @@
+# Application-specific
 config.json
-.idea
-.fake
+logs/
+*.log
+
+# Build artifacts
+bin/
+*.exe
+SlothGo
+SLOTH-GO
+
+# Archives
+*.zip
+*.tar.gz
+
+# Go
+coverage.out
+vendor/
+
+# IDE & Editors
+.idea/
+.vscode/
+.fake/
+
+# OS
+.DS_Store
+
+# Environment & Testing
+.env
+.env.test
+.tmp/
+testdata/
+
+# Dependencies (unused in Go, but keep for safety)
+node_modules/
