@@ -23,6 +23,11 @@ type AppLogger struct {
 }
 
 func NewAppLogger(dryRun bool) *AppLogger {
+	// Ensure directory exists (log early if it fails, but continue so program can still run)
+	if err := os.MkdirAll("logs", 0755); err != nil {
+		log.Printf("failed to create logs directory: %v", err)
+	}
+
 	// Single rotating log file
 	rotator := &golumberjack.Logger{
 		Filename:   "logs/sloth.log",
@@ -31,9 +36,6 @@ func NewAppLogger(dryRun bool) *AppLogger {
 		MaxAge:     30, // days
 		Compress:   true,
 	}
-
-	// Ensure directory exists
-	os.MkdirAll("logs", 0755)
 
 	l := log.New(rotator, "", log.Ldate|log.Ltime|log.Lshortfile)
 	return &AppLogger{fileLogger: l, dryRun: dryRun}
