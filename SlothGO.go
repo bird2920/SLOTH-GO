@@ -52,8 +52,9 @@ func main() {
 	folders := getFolders(appLogger)
 	elapsed := time.Since(start)
 
-	for _, f := range folders {
-		processFolder(appLogger, balancer, &f)
+	// Use index loop to avoid implicit memory aliasing of range variable when taking its address
+	for i := range folders {
+		processFolder(appLogger, balancer, &folders[i])
 	}
 
 	appLogger.Summary(elapsed)
@@ -154,6 +155,7 @@ func moveFiles(appLogger *AppLogger, b *Balancer, inChan chan string, inPath str
 			continue
 		}
 
+		// Ensure destination folder exists
 		if err := os.MkdirAll(outFolder, 0755); err != nil {
 			appLogger.Error("mkdir failed: %v", err)
 			continue

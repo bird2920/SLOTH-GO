@@ -1,14 +1,17 @@
+run:
+  timeout: 3m
+  tests: true
+  issues-exit-code: 1
+
+output:
+  format: colored-line-number
+
 linters-settings:
-  dupl:
-    threshold: 100
-  funlen:
-    lines: 100
-    statements: 50
-  gci:
-    local-prefixes: github.com/bird2920/SLOTH-GO
-  goconst:
-    min-len: 2
-    min-occurrences: 2
+  gocyclo:
+    min-complexity: 15
+  lll:
+    line-length: 140
+    tab-width: 4
   gocritic:
     enabled-tags:
       - diagnostic
@@ -22,69 +25,136 @@ linters-settings:
       - octalLiteral
       - whyNoLint
       - wrapperFunc
+  depguard:
+    list-type: whitelist
+    packages:
+      - gopkg.in/natefinch/lumberjack.v2
+    exclude-go-root: true
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/bird2920/SLOTH-GO)
+    skip-generated: true
+  misspell:
+    locale: US
+  goconst:
+    min-len: 2
+    min-occurrences: 2
+  funlen:
+    lines: 100
+    statements: 50
+  dupl:
+    threshold: 100
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+    - typecheck
+    - gocritic
+    - gosec
+    - gocyclo
+    - lll
+    - shadow
+    - stylecheck
+    - misspell
+    - unparam
+    - whitespace
+    - goconst
+    - dupl
+    - funlen
+    - gofmt
+    - goimports
+    - rowserrcheck
+    - nakedret
+    - unconvert
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - funlen
+        - gocyclo
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  tests: true
+  issues-exit-code: 1
+
+output:
+  format: colored-line-number
+
+linters-settings:
   gocyclo:
     min-complexity: 15
-  goimports:
-    local-prefixes: github.com/bird2920/SLOTH-GO
-  golint:
-    min-confidence: 0
-  gomnd:
-    settings:
-      mnd:
-        checks: argument,case,condition,operation,return,assign
-  govet:
-    check-shadowing: true
   lll:
     line-length: 140
-  maligned:
-    suggest-new: true
+    tab-width: 4
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - dupImport
+      - ifElseChain
+      - octalLiteral
+      - whyNoLint
+      - wrapperFunc
+  depguard:
+    list-type: whitelist
+    packages:
+      - gopkg.in/natefinch/lumberjack.v2
+    exclude-go-root: true
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/bird2920/SLOTH-GO)
+    skip-generated: true
   misspell:
     locale: US
 
 linters:
   disable-all: true
   enable:
-    - bodyclose
-    - deadcode
-    - depguard
-    - dogsled
-    - dupl
     - errcheck
-    - funlen
-    - gochecknoinits
-    - goconst
-    - gocritic
-    - gocyclo
-    - gofmt
-    - goimports
-    - golint
-    - gomnd
-    - goprintffuncname
-    - gosec
     - gosimple
     - govet
-    - ineffassign
-    - interfacer
-    - lll
-    - misspell
-    - nakedret
-    - rowserrcheck
-    - scopelint
     - staticcheck
-    - structcheck
-    - stylecheck
-    - typecheck
-    - unconvert
-    - unparam
     - unused
-    - varcheck
+    - ineffassign
+    - typecheck
+    - gocritic
+    - gosec
+    - gocyclo
+    - lll
+    - shadow
+    - stylecheck
+    - misspell
+    - unparam
     - whitespace
+    - goconst
+    - dupl
+    - funlen
+    - gofmt
+    - goimports
+    - rowserrcheck
+    - nakedret
+    - unconvert
 
 issues:
   exclude-rules:
     - path: _test\.go
       linters:
-        - gomnd
-
-run:
-  timeout: 10m
+        - funlen
+        - gocyclo
+  max-issues-per-linter: 0
+  max-same-issues: 0
