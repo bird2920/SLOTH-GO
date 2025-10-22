@@ -62,6 +62,9 @@ func main() {
 
 // deleteFiles using filepath.WalkDir (more efficient than filepath.Walk)
 func deleteFiles(inPath, extension string, removeOlderThan int, appLogger *AppLogger, dryRun bool) {
+	const dryRunDeleteLimit = 5
+	deleteCount := 0
+
 	e := filepath.WalkDir(inPath, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -77,7 +80,13 @@ func deleteFiles(inPath, extension string, removeOlderThan int, appLogger *AppLo
 
 		if filepath.Ext(d.Name()) == extension && fileInfo.ModTime().Before(time.Now().AddDate(0, 0, -1*removeOlderThan)) {
 			if dryRun {
-				appLogger.Info("[DRY-RUN] Would delete: %s", path)
+				if deleteCount < dryRunDeleteLimit {
+					appLogger.Info("[DRY-RUN] Would delete: %s", path)
+					deleteCount++
+				} else if deleteCount == dryRunDeleteLimit {
+					appLogger.Info("[DRY-RUN] Reached sample limit (%d files), skipping remaining deletions", dryRunDeleteLimit)
+					deleteCount++
+				}
 				return nil
 			}
 			err = os.Remove(path)
@@ -117,6 +126,28 @@ func processFolder(appLogger *AppLogger, balancer *Balancer, f *folder) {
 		appLogger.Error("ReadDir error: %v", err)
 	}
 
+	// Filter matching files
+	var matchingFiles []string
+	for _, element := range files {
+		if !element.IsDir() {
+			if filepath.Ext(element.Name()) == extension || extension == "" {
+				matchingFiles = append(matchingFiles, element.Name())
+			}
+		}
+	}
+
+	// Limit dry-run to sample of 5 files to avoid massive logs
+	const dryRunSampleLimit = 5
+	if localDryRun && len(matchingFiles) > dryRunSampleLimit {
+		appLogger.Info(
+			"[Rule:%s] DRY-RUN: Found %d files, limiting to %d sample files",
+			name,
+			len(matchingFiles),
+			dryRunSampleLimit,
+		)
+		matchingFiles = matchingFiles[:dryRunSampleLimit]
+	}
+
 	var numWorkers = 2 * runtime.GOMAXPROCS(0)
 
 	appLogger.Info("[Rule:%s] Starting %d workers (dryRun=%v)", name, numWorkers, localDryRun)
@@ -125,12 +156,8 @@ func processFolder(appLogger *AppLogger, balancer *Balancer, f *folder) {
 		go moveFiles(appLogger, balancer, readChan, inPath, outPaths, folderType, localDryRun)
 	}
 
-	for _, element := range files {
-		if !element.IsDir() {
-			if filepath.Ext(element.Name()) == extension || extension == "" {
-				readChan <- element.Name()
-			}
-		}
+	for _, fileName := range matchingFiles {
+		readChan <- fileName
 	}
 
 	close(readChan)
