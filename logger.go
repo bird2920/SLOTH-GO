@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	golumberjack "gopkg.in/natefinch/lumberjack.v2"
+	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
 )
 
 // AppLogger implements structured rotating logging with counters
@@ -28,13 +28,17 @@ func NewAppLogger(dryRun bool) *AppLogger {
 		log.Printf("failed to create logs directory: %v", err)
 	}
 
-	// Single rotating log file
-	rotator := &golumberjack.Logger{
-		Filename:   "logs/sloth.log",
-		MaxSize:    10, // megabytes
-		MaxBackups: 5,
-		MaxAge:     30, // days
-		Compress:   true,
+	// Set up rotatelogs
+	rotator, err := rotatelogs.New(
+		"logs/sloth-%Y%m%d.log",
+		rotatelogs.WithLinkName("logs/sloth.log"),
+		rotatelogs.WithMaxAge(30*24*time.Hour),
+		rotatelogs.WithRotationTime(24*time.Hour),
+	)
+	if err != nil {
+		log.Printf("failed to create rotatelogs: %v", err)
+		// fallback to standard logger to avoid nil pointer
+		return &AppLogger{fileLogger: log.Default(), dryRun: dryRun}
 	}
 
 	l := log.New(rotator, "", log.Ldate|log.Ltime|log.Lshortfile)
