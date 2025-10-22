@@ -1,10 +1,9 @@
 run:
   timeout: 3m
-  tests: true
-  issues-exit-code: 1
 
 output:
-  format: colored-line-number
+  formats:
+    - format: colored-line-number
 
 linters-settings:
   gocyclo:
@@ -25,11 +24,6 @@ linters-settings:
       - octalLiteral
       - whyNoLint
       - wrapperFunc
-  depguard:
-    list-type: whitelist
-    packages:
-      - gopkg.in/natefinch/lumberjack.v2
-    exclude-go-root: true
   gci:
     sections:
       - standard
@@ -61,7 +55,6 @@ linters:
     - gosec
     - gocyclo
     - lll
-    - shadow
     - stylecheck
     - misspell
     - unparam
@@ -83,5 +76,3 @@ issues:
         - gocyclo
   max-issues-per-linter: 0
   max-same-issues: 0
-  tests: true
-  issues-exit-code: 1

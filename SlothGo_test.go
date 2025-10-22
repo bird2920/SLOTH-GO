@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+func outputPath(parts ...string) string {
+	return filepath.Join(append([]string{string(os.PathSeparator) + "output"}, parts...)...)
+}
+
 func TestCreateOutputPath(t *testing.T) {
 	// Create a temporary test file
 	tempDir := t.TempDir()
@@ -35,29 +39,29 @@ func TestCreateOutputPath(t *testing.T) {
 		{
 			name:       "FolderType 1 - Date format",
 			folderType: "1",
-			expected:   filepath.Join("/output", "2023", "10", "Day 15"),
+			expected:   outputPath("2023", "10", "Day 15"),
 		},
 		{
 			name:       "FolderType 2 - Extension",
 			folderType: "2",
-			expected:   filepath.Join("/output", "pdf"),
+			expected:   outputPath("pdf"),
 		},
 		{
 			name:       "FolderType 4 - Root",
 			folderType: "4",
-			expected:   "/output",
+			expected:   outputPath(),
 		},
 		{
 			name:       "FolderType 5 - YYYYMM",
 			folderType: "5",
-			expected:   filepath.Join("/output", "202310"),
+			expected:   outputPath("202310"),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := NewAppLogger(true)
-			result := createOutputPath(logger, tempDir, "/output", "test.pdf", tt.folderType)
+			result := createOutputPath(logger, tempDir, outputPath(), "test.pdf", tt.folderType)
 			if result != tt.expected {
 				t.Errorf("createOutputPath() = %v, want %v", result, tt.expected)
 			}

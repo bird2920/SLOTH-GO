@@ -138,7 +138,15 @@ func processFolder(appLogger *AppLogger, balancer *Balancer, f *folder) {
 	appLogger.Info("[Rule:%s] Completed", name)
 }
 
-func moveFiles(appLogger *AppLogger, b *Balancer, inChan chan string, inPath string, outPaths []string, folderType string, localDryRun bool) {
+func moveFiles(
+	appLogger *AppLogger,
+	b *Balancer,
+	inChan chan string,
+	inPath string,
+	outPaths []string,
+	folderType string,
+	localDryRun bool,
+) {
 	for fileToMove := range inChan {
 		in := filepath.Join(inPath, fileToMove)
 		balOut, err := b.Next(outPaths)
@@ -282,7 +290,10 @@ func parseFolder(m map[string]any) folder {
 		f.Name = v
 	}
 	if v, ok := m["input"].(string); ok {
-		f.Input = v
+		// Normalize input path by replacing slashes with os.PathSeparator and cleaning path
+		cleanPath := strings.ReplaceAll(v, "/", string(os.PathSeparator))
+		cleanPath = strings.ReplaceAll(cleanPath, "\\", string(os.PathSeparator))
+		f.Input = filepath.Clean(cleanPath)
 	}
 	if v, ok := m["extension"].(string); ok {
 		f.Extension = v
@@ -296,7 +307,11 @@ func parseFolder(m map[string]any) folder {
 	if arr, ok := m["output"].([]any); ok {
 		for _, o := range arr {
 			if s, ok := o.(string); ok {
-				f.Output = append(f.Output, s)
+				// Normalize output path similarly
+				cleanOut := strings.ReplaceAll(s, "/", string(os.PathSeparator))
+				cleanOut = strings.ReplaceAll(cleanOut, "\\", string(os.PathSeparator))
+				cleanOut = filepath.Clean(cleanOut)
+				f.Output = append(f.Output, cleanOut)
 			}
 		}
 	}
