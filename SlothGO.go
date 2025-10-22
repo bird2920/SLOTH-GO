@@ -2,13 +2,12 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
+	"flag"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
-	C "strconv"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -16,11 +15,9 @@ import (
 
 var wg sync.WaitGroup
 var readChan chan string
-var name string
-var inPath string
-var outPath []string
-var extension string
-var folderType string
+
+// dryRun indicates whether file operations should be simulated only
+var dryRun bool
 
 type folder struct {
 	Name            string   `json:"name"`
@@ -29,130 +26,152 @@ type folder struct {
 	Extension       string   `json:"extension"`
 	FolderType      string   `json:"folderType"`
 	RemoveOlderThan int      `json:"removeOlderThan"`
+	DryRun          bool     `json:"dryRun"`
 }
 
 func main() {
 	header()
 
-	balancer := &Balancer{}
+	// Parse flags early
+	dryRunFlag := flag.Bool("dry-run", false, "simulate all operations without changing the filesystem")
+	flag.Parse()
 
+	// Allow env override (SLOTH_DRY_RUN=1)
+	if os.Getenv("SLOTH_DRY_RUN") == "1" {
+		dryRun = true
+	} else {
+		dryRun = *dryRunFlag
+	}
+
+	appLogger := NewAppLogger(dryRun)
 	start := time.Now()
-	log.Println("Start time:", start)
+	appLogger.Info("Start time: %s", start.Format(time.RFC3339))
 
+	balancer := &Balancer{}
 	folders := getFolders()
 	elapsed := time.Since(start)
 
 	for _, f := range folders {
-		name = f.Name
-		inPath = f.Input
-		outPath = f.Output
-		extension = f.Extension
-		folderType = f.FolderType
-		removeOlderThan := f.RemoveOlderThan
-
-		readChan = make(chan string, 100)
-
-		if folderType == "delete" && removeOlderThan > 0 && inPath != "" {
-			log.Printf("Deleting files older than %d days from %s", removeOlderThan, inPath)
-			deleteFiles(inPath, extension, removeOlderThan)
-		}
-
-		files, err := ioutil.ReadDir(inPath)
-		if err != nil {
-			log.Println(err)
-		}
-
-		var numWorkers = 2 * runtime.GOMAXPROCS(0)
-
-		//Start workers
-		fmt.Println("Starting", numWorkers, "Workers")
-		wg.Add(numWorkers)
-		for i := 0; i < numWorkers; i++ {
-			go moveFiles(balancer, readChan)
-		}
-
-		//Iterate over each file and move it
-		for _, element := range files {
-			if !element.IsDir() {
-				if filepath.Ext(element.Name()) == extension || extension == "" {
-					//Count number of go routines
-					readChan <- element.Name()
-					println(element.Name())
-				}
-			}
-		}
-
-		// notify readChan that no more messages are coming to avoid deadlock
-		close(readChan)
-
-		//Wait for all go routines to finish
-		wg.Wait()
-
-		elapsed = time.Since(start)
-		fmt.Printf("Executed: %s\n", name)
+		processFolder(appLogger, balancer, f)
 	}
 
-	fmt.Printf("Total execution time: %.3f seconds.", elapsed.Seconds())
+	appLogger.Summary(elapsed)
 }
 
 // func delayMinute(n time.Duration) {
 // 	time.Sleep(n * time.Minute)
 // }
 
-//deleteFiles using filepath.Walk
-func deleteFiles(inPath, extension string, removeOlderThan int) {
-	e := filepath.Walk(inPath, func(path string, file os.FileInfo, err error) error {
+// deleteFiles using filepath.WalkDir (more efficient than filepath.Walk)
+func deleteFiles(inPath, extension string, removeOlderThan int, appLogger *AppLogger) {
+	e := filepath.WalkDir(inPath, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if file.IsDir() {
-			// //Remove directories that are empty
-			// if err := os.Remove(filepath.Dir(path)); err != nil {
-			// 	return err
-			// }
-			// log.Print("Deleted: ", filepath.Dir(path))
-
+		if d.IsDir() {
 			return nil
 		}
-		if filepath.Ext(file.Name()) == extension && file.ModTime().Before(time.Now().AddDate(0, 0, -1*removeOlderThan)) {
+
+		fileInfo, err := d.Info()
+		if err != nil {
+			return err
+		}
+
+		if filepath.Ext(d.Name()) == extension && fileInfo.ModTime().Before(time.Now().AddDate(0, 0, -1*removeOlderThan)) {
 			err = os.Remove(path)
 			if err != nil {
+				appLogger.Error("delete failed: %v", err)
 				return err
 			}
-			log.Print("Deleted: ", path)
-
-			return nil
+			appLogger.Info("Deleted: %s", path)
 		}
 		return nil
 	})
 
 	if e != nil {
-		log.Println(e)
+		appLogger.Error("delete traversal error: %v", e)
 	}
 }
 
-func moveFiles(b *Balancer, inChan chan string) {
+// processFolder executes a single folder rule
+func processFolder(appLogger *AppLogger, balancer *Balancer, f folder) {
+	name := f.Name
+	inPath := f.Input
+	outPaths := f.Output
+	extension := f.Extension
+	folderType := f.FolderType
+	removeOlderThan := f.RemoveOlderThan
+	localDryRun := dryRun || f.DryRun
 
-	for fileToMove := range inChan {
-		//Input file
-		in := filepath.Join(inPath, fileToMove)
-		balOut := b.Next(outPath)
+	readChan = make(chan string, 100)
 
-		outFolder := createOutputPath(inPath, balOut, fileToMove)
-		out := filepath.Join(outFolder, fileToMove)
-
-		os.MkdirAll(outFolder, 0755)
-
-		err := os.Rename(in, out)
-		if err != nil {
-			log.Println(err)
+	if folderType == "delete" && removeOlderThan > 0 && inPath != "" {
+		appLogger.Info("[Rule:%s] Deleting files older than %d days from %s", name, removeOlderThan, inPath)
+		if !localDryRun {
+			deleteFiles(inPath, extension, removeOlderThan, appLogger)
+		} else {
+			appLogger.Info("[DRY-RUN] Would delete files older than %d days from %s", removeOlderThan, inPath)
 		}
 	}
 
+	files, err := os.ReadDir(inPath)
+	if err != nil {
+		log.Println(err)
+	}
+
+	var numWorkers = 2 * runtime.GOMAXPROCS(0)
+
+	appLogger.Info("[Rule:%s] Starting %d workers (dryRun=%v)", name, numWorkers, localDryRun)
+	wg.Add(numWorkers)
+	for i := 0; i < numWorkers; i++ {
+		go moveFiles(appLogger, balancer, readChan, inPath, outPaths, folderType, localDryRun)
+	}
+
+	for _, element := range files {
+		if !element.IsDir() {
+			if filepath.Ext(element.Name()) == extension || extension == "" {
+				readChan <- element.Name()
+			}
+		}
+	}
+
+	close(readChan)
+	wg.Wait()
+	appLogger.Info("[Rule:%s] Completed", name)
+}
+
+func moveFiles(appLogger *AppLogger, b *Balancer, inChan chan string, inPath string, outPaths []string, folderType string, localDryRun bool) {
+	for fileToMove := range inChan {
+		in := filepath.Join(inPath, fileToMove)
+		balOut, err := b.Next(outPaths)
+		if err != nil {
+			appLogger.Error("Balancer error: %v", err)
+			continue
+		}
+		outFolder := createOutputPath(inPath, balOut, fileToMove, folderType)
+		out := filepath.Join(outFolder, fileToMove)
+
+		if localDryRun {
+			appLogger.Info("[DRY-RUN] Would create folder: %s", outFolder)
+			appLogger.Info("[DRY-RUN] Would move %s -> %s", in, out)
+			continue
+		}
+
+		err = os.MkdirAll(outFolder, 0755)
+		if err != nil {
+			appLogger.Error("mkdir failed: %v", err)
+			continue
+		}
+
+		err = os.Rename(in, out)
+		if err != nil {
+			appLogger.Error("rename failed: %v", err)
+		}
+	}
 	wg.Done()
 }
 
-func createOutputPath(inPath string, outPath string, fileToMove string) string {
+func createOutputPath(inPath string, outPath string, fileToMove string, folderType string) string {
 	fi, err := os.Stat(filepath.Join(inPath, fileToMove))
 	if err != nil {
 		log.Println(err)
@@ -161,9 +180,9 @@ func createOutputPath(inPath string, outPath string, fileToMove string) string {
 	var outFolder = ""
 	mTime := fi.ModTime()
 
-	year := C.Itoa(mTime.Year())
-	month := C.Itoa(int(mTime.Month()))
-	day := "Day " + C.Itoa(mTime.Day())
+	year := strconv.Itoa(mTime.Year())
+	month := strconv.Itoa(int(mTime.Month()))
+	day := "Day " + strconv.Itoa(mTime.Day())
 
 	ext := strings.SplitAfter(filepath.Ext(fi.Name()), ".")
 
@@ -204,9 +223,9 @@ func createOutputPath(inPath string, outPath string, fileToMove string) string {
 }
 
 func getFolders() []folder {
-	raw, err := ioutil.ReadFile("config.json")
+	raw, err := os.ReadFile("config.json")
 	if err != nil {
-		fmt.Println("getFolders -", err.Error())
+		log.Println("getFolders -", err.Error())
 		os.Exit(1)
 	}
 
@@ -216,6 +235,9 @@ func getFolders() []folder {
 }
 
 func header() {
-	println("Sloth: Running")
-	println("----------------------")
+	log.Println("Sloth: Running")
+	log.Println("----------------------")
+	if dryRun {
+		log.Println("DRY-RUN mode enabled: no filesystem changes will be made")
+	}
 }

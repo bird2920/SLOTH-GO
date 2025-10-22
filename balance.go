@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"sync"
 )
 
@@ -11,7 +12,11 @@ type Balancer struct {
 }
 
 // Next will get the next round robin folder
-func (b *Balancer) Next(folders []string) string {
+func (b *Balancer) Next(folders []string) (string, error) {
+	if len(folders) == 0 {
+		return "", errors.New("balancer: empty folders slice")
+	}
+
 	// lock so we have exclusive access to state
 	b.m.Lock()
 	f := folders[b.state]
@@ -20,9 +25,6 @@ func (b *Balancer) Next(folders []string) string {
 	if b.state >= len(folders) {
 		b.state = 0
 	}
-
-	// we are done with state unlock
 	b.m.Unlock()
-
-	return f
+	return f, nil
 }
