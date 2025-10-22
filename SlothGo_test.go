@@ -56,7 +56,8 @@ func TestCreateOutputPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := createOutputPath(tempDir, "/output", "test.pdf", tt.folderType)
+			logger := NewAppLogger(true)
+			result := createOutputPath(logger, tempDir, "/output", "test.pdf", tt.folderType)
 			if result != tt.expected {
 				t.Errorf("createOutputPath() = %v, want %v", result, tt.expected)
 			}
@@ -95,7 +96,8 @@ func TestGetFolders(t *testing.T) {
 	defer os.Chdir(originalDir)
 	os.Chdir(tempDir)
 
-	folders := getFolders()
+	logger := NewAppLogger(true)
+	folders := getFolders(logger)
 
 	if len(folders) != 1 {
 		t.Errorf("Expected 1 folder, got %d", len(folders))
