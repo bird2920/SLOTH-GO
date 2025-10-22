@@ -86,15 +86,21 @@ func TestGetFolders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = os.WriteFile(configPath, configData, 0644)
+	err = os.WriteFile(configPath, configData, 0600)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Change to temp directory
 	originalDir, _ := os.Getwd()
-	defer os.Chdir(originalDir)
-	os.Chdir(tempDir)
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			t.Errorf("Failed to restore directory: %v", err)
+		}
+	}()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to change directory: %v", err)
+	}
 
 	logger := NewAppLogger(true)
 	folders := getFolders(logger)

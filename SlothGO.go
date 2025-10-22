@@ -53,7 +53,7 @@ func main() {
 	elapsed := time.Since(start)
 
 	for _, f := range folders {
-		processFolder(appLogger, balancer, f)
+		processFolder(appLogger, balancer, &f)
 	}
 
 	appLogger.Summary(elapsed)
@@ -95,7 +95,7 @@ func deleteFiles(inPath, extension string, removeOlderThan int, appLogger *AppLo
 }
 
 // processFolder executes a single folder rule
-func processFolder(appLogger *AppLogger, balancer *Balancer, f folder) {
+func processFolder(appLogger *AppLogger, balancer *Balancer, f *folder) {
 	name := f.Name
 	inPath := f.Input
 	outPaths := f.Output
@@ -113,7 +113,7 @@ func processFolder(appLogger *AppLogger, balancer *Balancer, f folder) {
 
 	files, err := os.ReadDir(inPath)
 	if err != nil {
-		log.Println(err)
+		appLogger.Error("ReadDir error: %v", err)
 	}
 
 	var numWorkers = 2 * runtime.GOMAXPROCS(0)
@@ -154,8 +154,7 @@ func moveFiles(appLogger *AppLogger, b *Balancer, inChan chan string, inPath str
 			continue
 		}
 
-		err = os.MkdirAll(outFolder, 0755)
-		if err != nil {
+		if err := os.MkdirAll(outFolder, 0755); err != nil {
 			appLogger.Error("mkdir failed: %v", err)
 			continue
 		}
@@ -168,14 +167,13 @@ func moveFiles(appLogger *AppLogger, b *Balancer, inChan chan string, inPath str
 	wg.Done()
 }
 
-func createOutputPath(appLogger *AppLogger, inPath string, outPath string, fileToMove string, folderType string) string {
+func createOutputPath(appLogger *AppLogger, inPath, outPath, fileToMove, folderType string) string {
 	fi, err := os.Stat(filepath.Join(inPath, fileToMove))
 	if err != nil {
 		appLogger.Error("failed to stat file %s: %v", fileToMove, err)
 		return ""
 	}
 
-	var outFolder = ""
 	mTime := fi.ModTime()
 
 	year := strconv.Itoa(mTime.Year())
@@ -185,39 +183,31 @@ func createOutputPath(appLogger *AppLogger, inPath string, outPath string, fileT
 	ext := strings.SplitAfter(filepath.Ext(fi.Name()), ".")
 
 	switch folderType {
-
-	//1 uses file mod time as the folder YYYY\MM\Day DD format
+	// 1 uses file mod time as the folder YYYY\MM\Day DD format
 	case "1":
-		outFolder = filepath.Join(outPath, year, month, day)
-		return outFolder
+		return filepath.Join(outPath, year, month, day)
 
-		//2 uses the extension as the folder
+	// 2 uses the extension as the folder
 	case "2":
 		if len(ext) > 1 {
-			outFolder = filepath.Join(outPath, ext[1])
-		} else {
-			outFolder = filepath.Join(outPath)
+			return filepath.Join(outPath, ext[1])
 		}
-		return outFolder
+		return outPath
 
-		//3 uses the extension as the folder and then groups by year
+	// 3 uses the extension as the folder and then groups by year
 	case "3":
 		if len(ext) > 1 {
-			outFolder = filepath.Join(outPath, ext[1], year)
-		} else {
-			outFolder = filepath.Join(outPath, year)
+			return filepath.Join(outPath, ext[1], year)
 		}
-		return outFolder
+		return filepath.Join(outPath, year)
 
-		//4 will go to the root of defaultOut - ie moves files to the root of the output path
+	// 4 will go to the root of defaultOut - ie moves files to the root of the output path
 	case "4":
-		outFolder = filepath.Join(outPath)
-		return outFolder
+		return outPath
 
-		//5 uses mod time as the folder in YYYYMM format
+	// 5 uses mod time as the folder in YYYYMM format
 	case "5":
-		outFolder = filepath.Join(outPath, mTime.Format("200601"))
-		return outFolder
+		return filepath.Join(outPath, mTime.Format("200601"))
 
 	default:
 		return ""
@@ -241,12 +231,11 @@ func getFolders(appLogger *AppLogger) []folder {
 }
 
 // migrateConfig updates legacy configs:
-// - Identifies delete configs by folderType == "delete" OR name containing "DELETE" (case-insensitive)
+// - Identifies delete configs by folderType == "delete" OR name containing "DELETE"
 // - Merges removeOlderThan into matching non-delete rule (match by Input + Extension)
 // - Sets DeleteOlderThan (new field) accordingly
 // - Defaults DeleteOlderThan to 0 when not set
 // - Logs warning if delete rule cannot be matched
-// Assumption for matching: same Input and Extension uniquely identify the target rule.
 func migrateConfig(raw []byte, appLogger *AppLogger) ([]folder, error) {
 	var entries []map[string]any
 	if err := json.Unmarshal(raw, &entries); err != nil {
@@ -254,20 +243,8 @@ func migrateConfig(raw []byte, appLogger *AppLogger) ([]folder, error) {
 	}
 
 	var result []folder
-	// Index for quick lookup: key = input|extension (lower-cased)
 	idx := make(map[string]*folder)
 	var deleteRules []map[string]any
-
-	isDeleteRule := func(m map[string]any) bool {
-		// folderType check
-		if v, ok := m["folderType"].(string); ok && strings.EqualFold(v, "delete") {
-			return true
-		}
-		if n, ok := m["name"].(string); ok && strings.Contains(strings.ToLower(n), "delete") {
-			return true
-		}
-		return false
-	}
 
 	// First pass: collect non-delete rules
 	for _, m := range entries {
@@ -275,47 +252,71 @@ func migrateConfig(raw []byte, appLogger *AppLogger) ([]folder, error) {
 			deleteRules = append(deleteRules, m)
 			continue
 		}
-		f := folder{}
-		if v, ok := m["name"].(string); ok {
-			f.Name = v
-		}
-		if v, ok := m["input"].(string); ok {
-			f.Input = v
-		}
-		if v, ok := m["extension"].(string); ok {
-			f.Extension = v
-		}
-		if v, ok := m["folderType"].(string); ok {
-			f.FolderType = v
-		}
-		if v, ok := m["dryRun"].(bool); ok {
-			f.DryRun = v
-		}
-		// Outputs
-		if arr, ok := m["output"].([]any); ok {
-			for _, o := range arr {
-				if s, ok := o.(string); ok {
-					f.Output = append(f.Output, s)
-				}
-			}
-		}
-		// Legacy fields
-		if v, ok := m["removeOlderThan"].(float64); ok {
-			f.RemoveOlderThan = int(v)
-		}
-		if v, ok := m["deleteOlderThan"].(float64); ok {
-			f.DeleteOlderThan = int(v)
-		}
-		// Default new field from legacy if present and not already set
-		if f.DeleteOlderThan == 0 && f.RemoveOlderThan > 0 {
-			f.DeleteOlderThan = f.RemoveOlderThan
-		}
+		f := parseFolder(m)
 		key := strings.ToLower(f.Input + "|" + f.Extension)
 		idx[key] = &f
 		result = append(result, f)
 	}
 
 	// Second pass: merge delete rules
+	result = mergeDeleteRules(deleteRules, idx, result, appLogger)
+
+	return result, nil
+}
+
+func isDeleteRule(m map[string]any) bool {
+	if v, ok := m["folderType"].(string); ok && strings.EqualFold(v, "delete") {
+		return true
+	}
+	if n, ok := m["name"].(string); ok && strings.Contains(strings.ToLower(n), "delete") {
+		return true
+	}
+	return false
+}
+
+func parseFolder(m map[string]any) folder {
+	f := folder{}
+	if v, ok := m["name"].(string); ok {
+		f.Name = v
+	}
+	if v, ok := m["input"].(string); ok {
+		f.Input = v
+	}
+	if v, ok := m["extension"].(string); ok {
+		f.Extension = v
+	}
+	if v, ok := m["folderType"].(string); ok {
+		f.FolderType = v
+	}
+	if v, ok := m["dryRun"].(bool); ok {
+		f.DryRun = v
+	}
+	if arr, ok := m["output"].([]any); ok {
+		for _, o := range arr {
+			if s, ok := o.(string); ok {
+				f.Output = append(f.Output, s)
+			}
+		}
+	}
+	if v, ok := m["removeOlderThan"].(float64); ok {
+		f.RemoveOlderThan = int(v)
+	}
+	if v, ok := m["deleteOlderThan"].(float64); ok {
+		f.DeleteOlderThan = int(v)
+	}
+	// Default new field from legacy if present and not already set
+	if f.DeleteOlderThan == 0 && f.RemoveOlderThan > 0 {
+		f.DeleteOlderThan = f.RemoveOlderThan
+	}
+	return f
+}
+
+func mergeDeleteRules(
+	deleteRules []map[string]any,
+	idx map[string]*folder,
+	result []folder,
+	logger *AppLogger,
+) []folder {
 	for _, dr := range deleteRules {
 		input := ""
 		ext := ""
@@ -336,16 +337,50 @@ func migrateConfig(raw []byte, appLogger *AppLogger) ([]folder, error) {
 		key := strings.ToLower(input + "|" + ext)
 		if target, exists := idx[key]; exists {
 			if removeDays > 0 {
-				// Update in both index and result slice (pointer refers to slice element copy)
 				target.DeleteOlderThan = removeDays
-				appLogger.Info("Migrated delete rule into '%s' (DeleteOlderThan=%d)", target.Name, removeDays)
+				logger.Info(
+					"Migrated delete rule into '%s' (DeleteOlderThan=%d)",
+					target.Name,
+					removeDays,
+				)
 			}
 		} else {
-			appLogger.Warn("Unmatched legacy delete rule for input=%s extension=%s", input, ext)
+			f := convertDeleteRule(dr, input, ext, removeDays)
+			result = append(result, f)
+			msg := "Unmatched legacy delete rule for input=%s extension=%s" +
+				" converted to normal folder"
+			logger.Warn(msg, input, ext)
 		}
 	}
+	return result
+}
 
-	return result, nil
+func convertDeleteRule(
+	dr map[string]any,
+	input, ext string,
+	removeDays int,
+) folder {
+	f := folder{}
+	if v, ok := dr["name"].(string); ok {
+		name := strings.ReplaceAll(v, "DELETE", "")
+		name = strings.TrimSpace(name)
+		f.Name = name
+	}
+	f.Input = input
+	f.Extension = ext
+	f.FolderType = "1"
+	f.DeleteOlderThan = removeDays
+	if v, ok := dr["dryRun"].(bool); ok {
+		f.DryRun = v
+	}
+	if arr, ok := dr["output"].([]any); ok {
+		for _, o := range arr {
+			if s, ok := o.(string); ok {
+				f.Output = append(f.Output, s)
+			}
+		}
+	}
+	return f
 }
 
 func header() {

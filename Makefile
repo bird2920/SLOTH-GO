@@ -1,17 +1,23 @@
 # Makefile for SLOTH-GO
 
-.PHONY: build test clean run fmt vet lint install-deps
+.PHONY: build build-win test clean run fmt vet lint install-deps
 
 # Variables
 BINARY_NAME=sloth-go
 BUILD_DIR=./bin
 GO_FILES=$(shell find . -type f -name '*.go' -not -path './vendor/*')
 
-# Build the application
+# Build the application for the current OS
 build:
-	@echo "Building $(BINARY_NAME)..."
+	@echo "Building $(BINARY_NAME) for current OS..."
 	@mkdir -p $(BUILD_DIR)
 	@go build -o $(BUILD_DIR)/$(BINARY_NAME) .
+
+# Build the application for Windows (cross-compile)
+build-win:
+	@echo "Building $(BINARY_NAME) for Windows..."
+	@mkdir -p $(BUILD_DIR)
+	@GOOS=windows GOARCH=amd64 go build -o $(BUILD_DIR)/$(BINARY_NAME).exe .
 
 # Run the application
 run: build
