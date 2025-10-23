@@ -117,13 +117,12 @@ func processFolder(appLogger *AppLogger, balancer *Balancer, f *folder) {
 
 	readChan = make(chan string, 100)
 
-	if removeOlderThan > 0 && inPath != "" {
-		appLogger.Info("[Rule:%s] Deleting files older than %d days from %s", name, removeOlderThan, inPath)
-		deleteFiles(inPath, extension, removeOlderThan, appLogger, localDryRun)
-	}
-
-	// For delete-only rules (folderType == "delete"), skip move operations
+	// For delete-only rules (folderType == "delete"), delete from INPUT and skip move operations
 	if strings.EqualFold(folderType, "delete") {
+		if removeOlderThan > 0 && inPath != "" {
+			appLogger.Info("[Rule:%s] Deleting files older than %d days from INPUT: %s", name, removeOlderThan, inPath)
+			deleteFiles(inPath, extension, removeOlderThan, appLogger, localDryRun)
+		}
 		appLogger.Info("[Rule:%s] Delete-only rule completed", name)
 		return
 	}
@@ -185,6 +184,15 @@ func processFolder(appLogger *AppLogger, balancer *Balancer, f *folder) {
 
 	close(readChan)
 	wg.Wait()
+
+	// For move rules with deleteOlderThan, delete old files from OUTPUT paths (archives)
+	if removeOlderThan > 0 && len(outPaths) > 0 {
+		appLogger.Info("[Rule:%s] Deleting files older than %d days from OUTPUT paths", name, removeOlderThan)
+		for _, outPath := range outPaths {
+			deleteFiles(outPath, extension, removeOlderThan, appLogger, localDryRun)
+		}
+	}
+
 	appLogger.Info("[Rule:%s] Completed", name)
 }
 
