@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -15,6 +16,23 @@ import (
 
 var wg sync.WaitGroup
 var readChan chan string
+
+var folderTypeDescriptions = map[string]string{
+	"1": "By Mod Time (YYYY/MM/Day DD)",
+	"2": "By Extension",
+	"3": "By Extension + Year",
+	"4": "Flat Output (root only)",
+	"5": "Compact Date (YYYYMM)",
+	"6": "Standard Date (YYYY/MM/DD)",
+	"7": "ISO Week (YYYY/Week NN)",
+}
+
+func listFolderTypes() {
+	fmt.Println("Available Folder Types:")
+	for k, v := range folderTypeDescriptions {
+		fmt.Printf("  %s: %s\n", k, v)
+	}
+}
 
 // dryRun indicates whether file operations should be simulated only
 var dryRun bool
@@ -35,7 +53,13 @@ func main() {
 
 	// Parse flags early
 	dryRunFlag := flag.Bool("dry-run", false, "simulate all operations without changing the filesystem")
+	showTypes := flag.Bool("list-types", false, "Show available folder type options")
 	flag.Parse()
+
+	if *showTypes {
+		listFolderTypes()
+		os.Exit(0)
+	}
 
 	// Allow env override (SLOTH_DRY_RUN=1)
 	if os.Getenv("SLOTH_DRY_RUN") == "1" {
@@ -58,6 +82,10 @@ func main() {
 	}
 
 	appLogger.Summary(elapsed)
+
+	// Friendly console hint so users know where to look for detailed activity
+	log.Printf("Sloth: Completed in %s (dryRun=%v). See detailed log: %s", elapsed.Truncate(time.Millisecond), dryRun, "logs/sloth.log")
+	log.Println("Tip: If nothing seemed to happen, open logs/sloth.log for per-file actions and any errors/warnings.")
 }
 
 // deleteFiles using filepath.WalkDir (more efficient than filepath.Walk)
@@ -105,6 +133,114 @@ func deleteFiles(inPath, extension string, removeOlderThan int, appLogger *AppLo
 	}
 }
 
+// Helper: determine if rule is delete-only
+func isDeleteOnly(folderType string) bool { return strings.EqualFold(folderType, "delete") }
+
+// Helper: handle delete-only rule; returns true if handled and caller should return
+func handleDeleteOnlyRule(
+	appLogger *AppLogger,
+	name, inPath, extension string,
+	removeOlderThan int,
+	folderType string,
+	localDryRun bool,
+) bool {
+	if !isDeleteOnly(folderType) {
+		return false
+	}
+	if removeOlderThan > 0 && inPath != "" {
+		appLogger.Info("[Rule:%s] Deleting files older than %d days from INPUT: %s", name, removeOlderThan, inPath)
+		deleteFiles(inPath, extension, removeOlderThan, appLogger, localDryRun)
+	}
+	appLogger.Info("[Rule:%s] Delete-only rule completed", name)
+	return true
+}
+
+// Helper: ensure output directories exist (creates final component if parent exists)
+func ensureOutputDirs(appLogger *AppLogger, name string, outPaths []string) error {
+	for _, outPath := range outPaths {
+		if _, err := os.Stat(outPath); os.IsNotExist(err) {
+			parentDir := filepath.Dir(outPath)
+			if _, err := os.Stat(parentDir); os.IsNotExist(err) {
+				appLogger.Error("[Rule:%s] Output parent directory does not exist: %s (cannot auto-create)", name, parentDir)
+				return err
+			}
+			if err := os.Mkdir(outPath, 0755); err != nil {
+				appLogger.Error("[Rule:%s] Failed to create output directory %s: %v", name, outPath, err)
+				return err
+			}
+			appLogger.Info("[Rule:%s] Created output directory: %s", name, outPath)
+		}
+	}
+	return nil
+}
+
+// Helper: collect matching files in input directory
+func collectMatchingFiles(inPath, extension string) ([]string, error) {
+	files, err := os.ReadDir(inPath)
+	if err != nil {
+		return nil, err
+	}
+	var matching []string
+	for _, e := range files {
+		if e.IsDir() {
+			continue
+		}
+		if filepath.Ext(e.Name()) == extension || extension == "" {
+			matching = append(matching, e.Name())
+		}
+	}
+	return matching, nil
+}
+
+// Helper: apply dry-run sampling limit
+func applyDryRunSampleLimit(appLogger *AppLogger, name string, files []string, localDryRun bool) []string {
+	const dryRunSampleLimit = 5
+	if localDryRun && len(files) > dryRunSampleLimit {
+		appLogger.Info("[Rule:%s] DRY-RUN: Found %d files, limiting to %d sample files", name, len(files), dryRunSampleLimit)
+		return files[:dryRunSampleLimit]
+	}
+	return files
+}
+
+// Helper: run workers to move files
+func runMoveWorkers(
+	appLogger *AppLogger,
+	balancer *Balancer,
+	name, inPath string,
+	outPaths []string,
+	folderType string,
+	localDryRun bool,
+	files []string,
+) {
+	if len(files) == 0 {
+		appLogger.Info("[Rule:%s] No matching files found", name)
+		return
+	}
+	readChan = make(chan string, 100)
+	numWorkers := 2 * runtime.GOMAXPROCS(0)
+	appLogger.Info("[Rule:%s] Starting %d workers (dryRun=%v)", name, numWorkers, localDryRun)
+	wg.Add(numWorkers)
+	for i := 0; i < numWorkers; i++ {
+		go moveFiles(appLogger, balancer, readChan, inPath, outPaths, folderType, localDryRun)
+	}
+	for _, fn := range files {
+		readChan <- fn
+	}
+	close(readChan)
+	wg.Wait()
+}
+
+// Helper: delete old files in output paths if configured
+func deleteOldOutputFiles(appLogger *AppLogger, name string, outPaths []string, extension string, removeOlderThan int, localDryRun bool) {
+	if removeOlderThan <= 0 || len(outPaths) == 0 {
+		return
+	}
+	appLogger.Info("[Rule:%s] Deleting files older than %d days from OUTPUT paths", name, removeOlderThan)
+	for _, outPath := range outPaths {
+		deleteFiles(outPath, extension, removeOlderThan, appLogger, localDryRun)
+	}
+}
+
 // processFolder executes a single folder rule
 func processFolder(appLogger *AppLogger, balancer *Balancer, f *folder) {
 	name := f.Name
@@ -114,87 +250,27 @@ func processFolder(appLogger *AppLogger, balancer *Balancer, f *folder) {
 	folderType := f.FolderType
 	removeOlderThan := f.DeleteOlderThan
 	localDryRun := dryRun || f.DryRun
-
-	readChan = make(chan string, 100)
-
-	// For delete-only rules (folderType == "delete"), delete from INPUT and skip move operations
-	if strings.EqualFold(folderType, "delete") {
-		if removeOlderThan > 0 && inPath != "" {
-			appLogger.Info("[Rule:%s] Deleting files older than %d days from INPUT: %s", name, removeOlderThan, inPath)
-			deleteFiles(inPath, extension, removeOlderThan, appLogger, localDryRun)
-		}
-		appLogger.Info("[Rule:%s] Delete-only rule completed", name)
+	// 1. Handle delete-only rule path early
+	if handleDeleteOnlyRule(appLogger, name, inPath, extension, removeOlderThan, folderType, localDryRun) {
 		return
 	}
-
-	// Check if output paths exist; if not, try creating only the last directory component
-	for _, outPath := range outPaths {
-		if _, err := os.Stat(outPath); os.IsNotExist(err) {
-			parentDir := filepath.Dir(outPath)
-			if _, err := os.Stat(parentDir); os.IsNotExist(err) {
-				appLogger.Error("[Rule:%s] Output parent directory does not exist: %s (cannot auto-create)", name, parentDir)
-				return
-			}
-			// Parent exists, create just the final directory
-			if err := os.Mkdir(outPath, 0755); err != nil {
-				appLogger.Error("[Rule:%s] Failed to create output directory %s: %v", name, outPath, err)
-				return
-			}
-			appLogger.Info("[Rule:%s] Created output directory: %s", name, outPath)
-		}
+	// 2. Ensure output directories
+	if err := ensureOutputDirs(appLogger, name, outPaths); err != nil {
+		return
 	}
-
-	files, err := os.ReadDir(inPath)
+	// 3. Collect matching files
+	matchingFiles, err := collectMatchingFiles(inPath, extension)
 	if err != nil {
 		appLogger.Error("ReadDir error: %v", err)
 		return
 	}
-
-	// Filter matching files
-	var matchingFiles []string
-	for _, element := range files {
-		if !element.IsDir() {
-			if filepath.Ext(element.Name()) == extension || extension == "" {
-				matchingFiles = append(matchingFiles, element.Name())
-			}
-		}
-	}
-
-	// Limit dry-run to sample of 5 files to avoid massive logs
-	const dryRunSampleLimit = 5
-	if localDryRun && len(matchingFiles) > dryRunSampleLimit {
-		appLogger.Info(
-			"[Rule:%s] DRY-RUN: Found %d files, limiting to %d sample files",
-			name,
-			len(matchingFiles),
-			dryRunSampleLimit,
-		)
-		matchingFiles = matchingFiles[:dryRunSampleLimit]
-	}
-
-	var numWorkers = 2 * runtime.GOMAXPROCS(0)
-
-	appLogger.Info("[Rule:%s] Starting %d workers (dryRun=%v)", name, numWorkers, localDryRun)
-	wg.Add(numWorkers)
-	for i := 0; i < numWorkers; i++ {
-		go moveFiles(appLogger, balancer, readChan, inPath, outPaths, folderType, localDryRun)
-	}
-
-	for _, fileName := range matchingFiles {
-		readChan <- fileName
-	}
-
-	close(readChan)
-	wg.Wait()
-
-	// For move rules with deleteOlderThan, delete old files from OUTPUT paths (archives)
-	if removeOlderThan > 0 && len(outPaths) > 0 {
-		appLogger.Info("[Rule:%s] Deleting files older than %d days from OUTPUT paths", name, removeOlderThan)
-		for _, outPath := range outPaths {
-			deleteFiles(outPath, extension, removeOlderThan, appLogger, localDryRun)
-		}
-	}
-
+	// 4. Apply dry-run sampling limit
+	matchingFiles = applyDryRunSampleLimit(appLogger, name, matchingFiles, localDryRun)
+	// 5. Run workers to move files
+	runMoveWorkers(appLogger, balancer, name, inPath, outPaths, folderType, localDryRun, matchingFiles)
+	// 6. Delete old files from output, if configured
+	deleteOldOutputFiles(appLogger, name, outPaths, extension, removeOlderThan, localDryRun)
+	// 7. Completion log
 	appLogger.Info("[Rule:%s] Completed", name)
 }
 
@@ -278,6 +354,15 @@ func createOutputPath(appLogger *AppLogger, inPath, outPath, fileToMove, folderT
 	// 5 uses mod time as the folder in YYYYMM format
 	case "5":
 		return filepath.Join(outPath, mTime.Format("200601"))
+
+	// 6 uses standard date hierarchy YYYY/MM/DD
+	case "6":
+		return filepath.Join(outPath, mTime.Format("2006/01/02"))
+
+	// 7 groups by ISO week (YYYY/Week NN)
+	case "7":
+		_, week := mTime.ISOWeek()
+		return filepath.Join(outPath, strconv.Itoa(mTime.Year()), fmt.Sprintf("Week %02d", week))
 
 	default:
 		return ""
