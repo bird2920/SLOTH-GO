@@ -265,31 +265,55 @@ func getFolders(appLogger *AppLogger) []folder {
 		os.Exit(1)
 	}
 
-	migrated, err := migrateConfig(raw, appLogger)
+	migrated, needsSave, err := migrateConfig(raw, appLogger)
 	if err != nil {
 		appLogger.Error("migration failed: %v", err)
 		os.Exit(1)
 	}
+
+	// Write back the migrated config if changes were made
+	if needsSave {
+		configBytes, err := json.MarshalIndent(migrated, "", "  ")
+		if err != nil {
+			appLogger.Error("failed to marshal migrated config: %v", err)
+		} else {
+			if err := os.WriteFile("config.json", configBytes, 0600); err != nil {
+				appLogger.Error("failed to write migrated config: %v", err)
+			} else {
+				appLogger.Info("Updated config.json with migrated settings")
+			}
+		}
+	}
+
 	return migrated
 }
 
 // migrateConfig updates legacy configs by converting removeOlderThan to DeleteOlderThan
 // and normalizing paths. DELETE rules are kept as standalone entries (never merged).
-func migrateConfig(raw []byte, appLogger *AppLogger) ([]folder, error) {
+// Returns the migrated folders, a flag indicating if the config needs to be saved, and any error.
+func migrateConfig(raw []byte, appLogger *AppLogger) ([]folder, bool, error) {
 	var entries []map[string]any
 	if err := json.Unmarshal(raw, &entries); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	var result []folder
+	needsSave := false
+
 	for _, m := range entries {
 		f := parseFolder(m)
+
+		// Check if legacy field exists (indicates migration needed)
+		if _, hasLegacy := m["removeOlderThan"]; hasLegacy && f.RemoveOlderThan > 0 {
+			needsSave = true
+		}
 
 		// Check if this is a delete rule
 		if isDeleteRule(m) {
 			// For delete rules, ensure folderType is normalized
 			if f.FolderType == "" || strings.EqualFold(f.FolderType, "delete") {
 				f.FolderType = "delete"
+				needsSave = true
 			}
 			appLogger.Info("Migrated DELETE rule: %s (DeleteOlderThan=%d)", f.Name, f.DeleteOlderThan)
 		}
@@ -297,7 +321,7 @@ func migrateConfig(raw []byte, appLogger *AppLogger) ([]folder, error) {
 		result = append(result, f)
 	}
 
-	return result, nil
+	return result, needsSave, nil
 }
 
 func isDeleteRule(m map[string]any) bool {
