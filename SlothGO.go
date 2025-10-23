@@ -61,6 +61,7 @@ func main() {
 }
 
 // deleteFiles using filepath.WalkDir (more efficient than filepath.Walk)
+// TODO: swap inPath for Outpath. Need to avoid deleting files from root folders.
 func deleteFiles(inPath, extension string, removeOlderThan int, appLogger *AppLogger, dryRun bool) {
 	const dryRunDeleteLimit = 5
 	deleteCount := 0
@@ -127,9 +128,25 @@ func processFolder(appLogger *AppLogger, balancer *Balancer, f *folder) {
 		return
 	}
 
+	// Check if input path exists; if not, try creating only the last directory component
+	if _, err := os.Stat(inPath); os.IsNotExist(err) {
+		parentDir := filepath.Dir(inPath)
+		if _, err := os.Stat(parentDir); os.IsNotExist(err) {
+			appLogger.Error("[Rule:%s] Parent directory does not exist: %s (cannot auto-create)", name, parentDir)
+			return
+		}
+		// Parent exists, create just the final directory
+		if err := os.Mkdir(inPath, 0755); err != nil {
+			appLogger.Error("[Rule:%s] Failed to create input directory %s: %v", name, inPath, err)
+			return
+		}
+		appLogger.Info("[Rule:%s] Created input directory: %s", name, inPath)
+	}
+
 	files, err := os.ReadDir(inPath)
 	if err != nil {
 		appLogger.Error("ReadDir error: %v", err)
+		return
 	}
 
 	// Filter matching files
