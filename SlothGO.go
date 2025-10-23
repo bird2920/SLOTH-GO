@@ -127,19 +127,21 @@ func processFolder(appLogger *AppLogger, balancer *Balancer, f *folder) {
 		return
 	}
 
-	// Check if input path exists; if not, try creating only the last directory component
-	if _, err := os.Stat(inPath); os.IsNotExist(err) {
-		parentDir := filepath.Dir(inPath)
-		if _, err := os.Stat(parentDir); os.IsNotExist(err) {
-			appLogger.Error("[Rule:%s] Parent directory does not exist: %s (cannot auto-create)", name, parentDir)
-			return
+	// Check if output paths exist; if not, try creating only the last directory component
+	for _, outPath := range outPaths {
+		if _, err := os.Stat(outPath); os.IsNotExist(err) {
+			parentDir := filepath.Dir(outPath)
+			if _, err := os.Stat(parentDir); os.IsNotExist(err) {
+				appLogger.Error("[Rule:%s] Output parent directory does not exist: %s (cannot auto-create)", name, parentDir)
+				return
+			}
+			// Parent exists, create just the final directory
+			if err := os.Mkdir(outPath, 0755); err != nil {
+				appLogger.Error("[Rule:%s] Failed to create output directory %s: %v", name, outPath, err)
+				return
+			}
+			appLogger.Info("[Rule:%s] Created output directory: %s", name, outPath)
 		}
-		// Parent exists, create just the final directory
-		if err := os.Mkdir(inPath, 0755); err != nil {
-			appLogger.Error("[Rule:%s] Failed to create input directory %s: %v", name, inPath, err)
-			return
-		}
-		appLogger.Info("[Rule:%s] Created input directory: %s", name, inPath)
 	}
 
 	files, err := os.ReadDir(inPath)
