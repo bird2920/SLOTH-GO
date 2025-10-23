@@ -28,6 +28,13 @@ func NewAppLogger(dryRun bool) *AppLogger {
 		log.Printf("failed to create logs directory: %v", err)
 	}
 
+	// Remove existing symlink if it exists to avoid permission issues
+	// (allows rotatelogs to recreate with current user permissions)
+	symlinkPath := "logs/sloth.log"
+	if _, err := os.Lstat(symlinkPath); err == nil {
+		_ = os.Remove(symlinkPath)
+	}
+
 	// Set up rotatelogs
 	rotator, err := rotatelogs.New(
 		"logs/sloth-%Y%m%d.log",
