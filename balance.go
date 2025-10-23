@@ -19,6 +19,12 @@ func (b *Balancer) Next(folders []string) (string, error) {
 
 	// lock so we have exclusive access to state
 	b.m.Lock()
+	
+	// Reset state if it's out of bounds for current folders slice
+	if b.state >= len(folders) {
+		b.state = 0
+	}
+	
 	f := folders[b.state]
 	b.state++
 

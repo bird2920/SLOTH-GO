@@ -121,6 +121,12 @@ func processFolder(appLogger *AppLogger, balancer *Balancer, f *folder) {
 		deleteFiles(inPath, extension, removeOlderThan, appLogger, localDryRun)
 	}
 
+	// For delete-only rules (folderType == "delete"), skip move operations
+	if strings.EqualFold(folderType, "delete") {
+		appLogger.Info("[Rule:%s] Delete-only rule completed", name)
+		return
+	}
+
 	files, err := os.ReadDir(inPath)
 	if err != nil {
 		appLogger.Error("ReadDir error: %v", err)
@@ -267,12 +273,8 @@ func getFolders(appLogger *AppLogger) []folder {
 	return migrated
 }
 
-// migrateConfig updates legacy configs:
-// - Identifies delete configs by folderType == "delete" OR name containing "DELETE"
-// - Merges removeOlderThan into matching non-delete rule (match by Input + Extension)
-// - Sets DeleteOlderThan (new field) accordingly
-// - Defaults DeleteOlderThan to 0 when not set
-// - Logs warning if delete rule cannot be matched
+// migrateConfig updates legacy configs by converting removeOlderThan to DeleteOlderThan
+// and normalizing paths. DELETE rules are kept as standalone entries (never merged).
 func migrateConfig(raw []byte, appLogger *AppLogger) ([]folder, error) {
 	var entries []map[string]any
 	if err := json.Unmarshal(raw, &entries); err != nil {
@@ -280,23 +282,20 @@ func migrateConfig(raw []byte, appLogger *AppLogger) ([]folder, error) {
 	}
 
 	var result []folder
-	idx := make(map[string]*folder)
-	var deleteRules []map[string]any
-
-	// First pass: collect non-delete rules
 	for _, m := range entries {
-		if isDeleteRule(m) {
-			deleteRules = append(deleteRules, m)
-			continue
-		}
 		f := parseFolder(m)
-		key := strings.ToLower(f.Input + "|" + f.Extension)
-		idx[key] = &f
+
+		// Check if this is a delete rule
+		if isDeleteRule(m) {
+			// For delete rules, ensure folderType is normalized
+			if f.FolderType == "" || strings.EqualFold(f.FolderType, "delete") {
+				f.FolderType = "delete"
+			}
+			appLogger.Info("Migrated DELETE rule: %s (DeleteOlderThan=%d)", f.Name, f.DeleteOlderThan)
+		}
+
 		result = append(result, f)
 	}
-
-	// Second pass: merge delete rules
-	result = mergeDeleteRules(deleteRules, idx, result, appLogger)
 
 	return result, nil
 }
@@ -305,7 +304,7 @@ func isDeleteRule(m map[string]any) bool {
 	if v, ok := m["folderType"].(string); ok && strings.EqualFold(v, "delete") {
 		return true
 	}
-	if n, ok := m["name"].(string); ok && strings.Contains(strings.ToLower(n), "delete") {
+	if n, ok := m["name"].(string); ok && strings.Contains(strings.ToUpper(n), "DELETE") {
 		return true
 	}
 	return false
@@ -317,10 +316,7 @@ func parseFolder(m map[string]any) folder {
 		f.Name = v
 	}
 	if v, ok := m["input"].(string); ok {
-		// Normalize input path by replacing slashes with os.PathSeparator and cleaning path
-		cleanPath := strings.ReplaceAll(v, "/", string(os.PathSeparator))
-		cleanPath = strings.ReplaceAll(cleanPath, "\\", string(os.PathSeparator))
-		f.Input = filepath.Clean(cleanPath)
+		f.Input = filepath.Clean(v)
 	}
 	if v, ok := m["extension"].(string); ok {
 		f.Extension = v
@@ -334,11 +330,7 @@ func parseFolder(m map[string]any) folder {
 	if arr, ok := m["output"].([]any); ok {
 		for _, o := range arr {
 			if s, ok := o.(string); ok {
-				// Normalize output path similarly
-				cleanOut := strings.ReplaceAll(s, "/", string(os.PathSeparator))
-				cleanOut = strings.ReplaceAll(cleanOut, "\\", string(os.PathSeparator))
-				cleanOut = filepath.Clean(cleanOut)
-				f.Output = append(f.Output, cleanOut)
+				f.Output = append(f.Output, filepath.Clean(s))
 			}
 		}
 	}
@@ -348,81 +340,9 @@ func parseFolder(m map[string]any) folder {
 	if v, ok := m["deleteOlderThan"].(float64); ok {
 		f.DeleteOlderThan = int(v)
 	}
-	// Default new field from legacy if present and not already set
+	// Migrate legacy removeOlderThan to new DeleteOlderThan field
 	if f.DeleteOlderThan == 0 && f.RemoveOlderThan > 0 {
 		f.DeleteOlderThan = f.RemoveOlderThan
-	}
-	return f
-}
-
-func mergeDeleteRules(
-	deleteRules []map[string]any,
-	idx map[string]*folder,
-	result []folder,
-	logger *AppLogger,
-) []folder {
-	for _, dr := range deleteRules {
-		input := ""
-		ext := ""
-		if v, ok := dr["input"].(string); ok {
-			input = v
-		}
-		if v, ok := dr["extension"].(string); ok {
-			ext = v
-		}
-		removeDays := 0
-		if v, ok := dr["removeOlderThan"].(float64); ok {
-			removeDays = int(v)
-		}
-		if v, ok := dr["deleteOlderThan"].(float64); ok {
-			removeDays = int(v)
-		}
-
-		key := strings.ToLower(input + "|" + ext)
-		if target, exists := idx[key]; exists {
-			if removeDays > 0 {
-				target.DeleteOlderThan = removeDays
-				logger.Info(
-					"Migrated delete rule into '%s' (DeleteOlderThan=%d)",
-					target.Name,
-					removeDays,
-				)
-			}
-		} else {
-			f := convertDeleteRule(dr, input, ext, removeDays)
-			result = append(result, f)
-			msg := "Unmatched legacy delete rule for input=%s extension=%s" +
-				" converted to normal folder"
-			logger.Warn(msg, input, ext)
-		}
-	}
-	return result
-}
-
-func convertDeleteRule(
-	dr map[string]any,
-	input, ext string,
-	removeDays int,
-) folder {
-	f := folder{}
-	if v, ok := dr["name"].(string); ok {
-		name := strings.ReplaceAll(v, "DELETE", "")
-		name = strings.TrimSpace(name)
-		f.Name = name
-	}
-	f.Input = input
-	f.Extension = ext
-	f.FolderType = "1"
-	f.DeleteOlderThan = removeDays
-	if v, ok := dr["dryRun"].(bool); ok {
-		f.DryRun = v
-	}
-	if arr, ok := dr["output"].([]any); ok {
-		for _, o := range arr {
-			if s, ok := o.(string); ok {
-				f.Output = append(f.Output, s)
-			}
-		}
 	}
 	return f
 }
