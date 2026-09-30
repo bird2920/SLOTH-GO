@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -298,5 +299,32 @@ func TestISOWeekUsesISOYear(t *testing.T) {
 	}
 	if want := filepath.Join("out", "2026", "Week 01"); got != want {
 		t.Errorf("got %s, want %s", got, want)
+	}
+}
+
+func TestForwardSlashPathsOnWindows(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows path semantics")
+	}
+	f := parseFolder(map[string]any{
+		"input":  "U:/Processed File Archive/DriverPay",
+		"output": []any{"//server/share/DriverPay/Archive"},
+	})
+	if f.Input != `U:\Processed File Archive\DriverPay` {
+		t.Errorf("input = %s", f.Input)
+	}
+	if f.Output[0] != `\\server\share\DriverPay\Archive` {
+		t.Errorf("output = %s", f.Output[0])
+	}
+}
+
+func TestSavedConfigUsesForwardSlashes(t *testing.T) {
+	in := []folder{{Name: "a", Input: filepath.Join("U:", "in"), Output: []string{filepath.Join("U:", "in", "Archive")}}}
+	saved, _ := json.Marshal(withSlashPaths(in))
+	if strings.Contains(string(saved), `\\`) {
+		t.Errorf("saved config contains escaped backslashes: %s", saved)
+	}
+	if in[0].Output[0] != filepath.Join("U:", "in", "Archive") {
+		t.Errorf("withSlashPaths modified its input")
 	}
 }

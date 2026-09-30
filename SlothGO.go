@@ -502,7 +502,7 @@ func getFolders(appLogger *AppLogger) []folder {
 	if needsSave && dryRun {
 		appLogger.Info("[DRY-RUN] Would update config.json with migrated settings")
 	} else if needsSave {
-		configBytes, err := json.MarshalIndent(migrated, "", "  ")
+		configBytes, err := json.MarshalIndent(withSlashPaths(migrated), "", "  ")
 		if err != nil {
 			appLogger.Error("Failed to marshal migrated config: %v", err)
 		} else if err := os.WriteFile("config.json", configBytes, 0o600); err != nil {
@@ -550,6 +550,22 @@ func migrateConfig(raw []byte, appLogger *AppLogger) ([]folder, bool, error) {
 	}
 
 	return result, needsSave, nil
+}
+
+// withSlashPaths returns a copy of folders with forward-slash paths for writing config.json,
+// so saved configs never need escaped backslashes. Paths are converted back to the OS
+// separator by filepath.Clean when the config is loaded.
+func withSlashPaths(folders []folder) []folder {
+	out := make([]folder, len(folders))
+	for i, f := range folders {
+		f.Input = filepath.ToSlash(f.Input)
+		f.Output = make([]string, len(folders[i].Output))
+		for j, o := range folders[i].Output {
+			f.Output[j] = filepath.ToSlash(o)
+		}
+		out[i] = f
+	}
+	return out
 }
 
 func parseFolder(m map[string]any) folder {

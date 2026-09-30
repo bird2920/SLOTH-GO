@@ -72,6 +72,17 @@ Create a `config.json` file with an array of rules:
 ]
 ```
 
+### Windows Paths
+
+Use forward slashes in `config.json` so paths need no escaping. They are converted to backslashes when the config loads:
+
+```json
+"input": "U:/Processed File Archive/DriverPay",
+"output": ["//fileserver/share/DriverPay/Archive"]
+```
+
+Escaped backslashes (`"U:\\Processed File Archive"`) still work. When the tool rewrites `config.json` during a migration, it saves forward slashes.
+
 ### Configuration Fields
 
 | Field | Required | Description |
