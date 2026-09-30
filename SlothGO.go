@@ -386,43 +386,20 @@ func deleteFiles(appLogger *AppLogger, root, extension string, olderThanDays int
 	var dirs []string
 
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
+		switch {
+		case err != nil:
 			if path == root {
 				return err
 			}
 			appLogger.Warn("Cannot read %s: %v", path, err)
-			return nil
-		}
-		if d.IsDir() {
+		case d.IsDir():
 			if path != root {
 				dirs = append(dirs, path)
 			}
-			return nil
+		case isExpired(appLogger, path, d, extension, cutoff):
+			count++
+			removeExpired(appLogger, path, localDryRun, count <= dryRunDeleteLimit)
 		}
-		if !matchesExtension(d.Name(), extension) {
-			return nil
-		}
-		info, err := d.Info()
-		if err != nil {
-			appLogger.Warn("Cannot stat %s: %v", path, err)
-			return nil
-		}
-		if !info.ModTime().Before(cutoff) {
-			return nil
-		}
-
-		count++
-		if localDryRun {
-			if count <= dryRunDeleteLimit {
-				appLogger.Info("[DRY-RUN] Would delete: %s", path)
-			}
-			return nil
-		}
-		if err := os.Remove(path); err != nil {
-			appLogger.Error("Delete failed: %v", err)
-			return nil
-		}
-		appLogger.Info("Deleted: %s", path)
 		return nil
 	})
 
@@ -437,6 +414,34 @@ func deleteFiles(appLogger *AppLogger, root, extension string, olderThanDays int
 	if err == nil {
 		pruneEmptyDirs(appLogger, root, dirs, localDryRun)
 	}
+}
+
+// isExpired reports whether the file matches extension and was last modified before cutoff.
+func isExpired(appLogger *AppLogger, path string, d os.DirEntry, extension string, cutoff time.Time) bool {
+	if !matchesExtension(d.Name(), extension) {
+		return false
+	}
+	info, err := d.Info()
+	if err != nil {
+		appLogger.Warn("Cannot stat %s: %v", path, err)
+		return false
+	}
+	return info.ModTime().Before(cutoff)
+}
+
+// removeExpired deletes one expired file, or in dry-run logs it when logDryRun is set.
+func removeExpired(appLogger *AppLogger, path string, localDryRun, logDryRun bool) {
+	if localDryRun {
+		if logDryRun {
+			appLogger.Info("[DRY-RUN] Would delete: %s", path)
+		}
+		return
+	}
+	if err := os.Remove(path); err != nil {
+		appLogger.Error("Delete failed: %v", err)
+		return
+	}
+	appLogger.Info("Deleted: %s", path)
 }
 
 // pruneEmptyDirs removes empty folders from dirs (all below root, in walk order), deepest first
