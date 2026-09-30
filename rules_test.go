@@ -328,3 +328,18 @@ func TestSavedConfigUsesForwardSlashes(t *testing.T) {
 		t.Errorf("withSlashPaths modified its input")
 	}
 }
+
+func TestBuildVersionPrefersStampedValue(t *testing.T) {
+	orig := version
+	t.Cleanup(func() { version = orig })
+
+	version = "v1.2.3"
+	if got := buildVersion(); got != "v1.2.3" {
+		t.Fatalf("buildVersion() = %q, want v1.2.3", got)
+	}
+
+	version = "dev"
+	if got := buildVersion(); !strings.HasPrefix(got, "dev") {
+		t.Fatalf("unstamped buildVersion() = %q, want dev prefix", got)
+	}
+}

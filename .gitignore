@@ -33,3 +33,5 @@ testdata/
 
 # Dependencies (unused in Go, but keep for safety)
 node_modules/
+# Collected server configs (keep in the internal repo only)
+deployments/

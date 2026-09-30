@@ -71,8 +71,13 @@ type folder struct {
 func main() {
 	dryRunFlag := flag.Bool("dry-run", false, "simulate all operations without changing the filesystem")
 	showTypes := flag.Bool("list-types", false, "Show available folder type options")
+	showVersion := flag.Bool("version", false, "Print the build version and exit")
 	flag.Parse()
 
+	if *showVersion {
+		fmt.Println(buildVersion())
+		os.Exit(0)
+	}
 	if *showTypes {
 		listFolderTypes()
 		os.Exit(0)
@@ -84,6 +89,7 @@ func main() {
 
 	appLogger := NewAppLogger(dryRun)
 	start := time.Now()
+	appLogger.Info("Version: %s", buildVersion())
 	appLogger.Info("Start time: %s", start.Format(time.RFC3339))
 
 	balancer := &Balancer{}
