@@ -1,6 +1,6 @@
 # Makefile for SLOTH-GO
 
-.PHONY: build build-win test clean run fmt vet lint install-deps
+.PHONY: build build-win build-win-headless test clean run fmt vet lint install-deps
 
 # Variables
 BINARY_NAME=sloth-go
@@ -18,6 +18,12 @@ build-win:
 	@echo "Building $(BINARY_NAME) for Windows..."
 	@mkdir -p $(BUILD_DIR)
 	@GOOS=windows GOARCH=amd64 go build -o $(BUILD_DIR)/$(BINARY_NAME).exe .
+
+# Build for Windows without a console window (for Task Scheduler). Output goes only to logs/sloth.log.
+build-win-headless:
+	@echo "Building $(BINARY_NAME)-headless for Windows..."
+	@mkdir -p $(BUILD_DIR)
+	@GOOS=windows GOARCH=amd64 go build -ldflags "-H=windowsgui" -o $(BUILD_DIR)/$(BINARY_NAME)-headless.exe .
 
 # Run the application
 run: build

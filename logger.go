@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"runtime/debug"
 	"sync/atomic"
 	"time"
 
@@ -64,13 +63,12 @@ func (al *AppLogger) Warn(format string, args ...any) {
 	al.fileLogger.Printf("WARN: "+format, args...)
 }
 
-// Error logs errors to file and also prints to stderr with stack trace for troubleshooting.
+// Error logs errors to file and also prints them to stderr.
 func (al *AppLogger) Error(format string, args ...any) {
 	al.errorsCount.Add(1)
 	msg := fmt.Sprintf(format, args...)
 	al.fileLogger.Printf("ERROR: %s", msg)
-	// Console output with stack trace
-	fmt.Fprintf(os.Stderr, "ERROR: %s\nSTACK:\n%s\n", msg, debug.Stack())
+	fmt.Fprintf(os.Stderr, "ERROR: %s\n", msg)
 }
 
 // CountFile increments the files processed counter.
@@ -78,6 +76,12 @@ func (al *AppLogger) CountFile() { al.filesProcessed.Add(1) }
 
 // CountRule increments rules executed counter.
 func (al *AppLogger) CountRule() { al.rulesExecuted.Add(1) }
+
+// Warnings returns the number of warnings logged so far.
+func (al *AppLogger) Warnings() int64 { return al.warningsCount.Load() }
+
+// Errors returns the number of errors logged so far.
+func (al *AppLogger) Errors() int64 { return al.errorsCount.Load() }
 
 // Summary writes a final summary line.
 func (al *AppLogger) Summary(elapsed time.Duration) {
