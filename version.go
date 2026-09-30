@@ -2,13 +2,16 @@ package main
 
 import "runtime/debug"
 
+// devVersion marks a build that the Makefile did not stamp.
+const devVersion = "dev"
+
 // version is stamped at build time by the Makefile (-ldflags "-X main.version=...").
-var version = "dev"
+var version = devVersion
 
 // buildVersion returns the stamped version, falling back to the git revision Go embeds
 // in builds made from a checkout without the Makefile.
 func buildVersion() string {
-	if version != "dev" {
+	if version != devVersion {
 		return version
 	}
 	info, ok := debug.ReadBuildInfo()
@@ -34,5 +37,5 @@ func buildVersion() string {
 	if dirty {
 		rev += "-dirty"
 	}
-	return "dev-" + rev
+	return devVersion + "-" + rev
 }

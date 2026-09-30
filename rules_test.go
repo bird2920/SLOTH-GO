@@ -333,13 +333,14 @@ func TestBuildVersionPrefersStampedValue(t *testing.T) {
 	orig := version
 	t.Cleanup(func() { version = orig })
 
-	version = "v1.2.3"
-	if got := buildVersion(); got != "v1.2.3" {
-		t.Fatalf("buildVersion() = %q, want v1.2.3", got)
+	const stamped = "v1.2.3"
+	version = stamped
+	if got := buildVersion(); got != stamped {
+		t.Fatalf("buildVersion() = %q, want %s", got, stamped)
 	}
 
-	version = "dev"
-	if got := buildVersion(); !strings.HasPrefix(got, "dev") {
+	version = devVersion
+	if got := buildVersion(); !strings.HasPrefix(got, devVersion) {
 		t.Fatalf("unstamped buildVersion() = %q, want dev prefix", got)
 	}
 }
