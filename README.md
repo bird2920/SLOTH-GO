@@ -9,7 +9,7 @@ Fast file mover written in Go with parallel processing, rotating logs, and dry-r
 - **Parallel Processing**: Uses goroutines with round-robin load balancing across multiple output directories
 - **Dry-Run Mode**: Test configurations without making filesystem changes
 - **Structured Logging**: Rotating logs with Info/Warn/Error levels and automatic cleanup
-- **Flexible Organization**: 5 folder structure options based on date, extension, or custom patterns
+- **Flexible Organization**: 7 folder structure options based on date, extension, or custom patterns
 - **Auto-Deletion**: Optional cleanup of old files based on age
 - **Config Migration**: Automatically migrates legacy delete rules to new format
 
@@ -79,9 +79,10 @@ Create a `config.json` file with an array of rules:
 | `name` | Yes | Descriptive name for the rule |
 | `input` | Yes | Source directory to scan for files |
 | `output` | Yes | Array of destination directories (load balanced) |
-| `extension` | Yes | File extension to match (e.g., `.pdf`, `.jpg`). Use `""` for all files |
-| `folderType` | Yes | Output folder structure (see below) |
-| `deleteOlderThan` | No | Delete files older than N days (0 = disabled) |
+| `extension` | Yes | File extension to match, case-insensitive (e.g., `.pdf` also matches `.PDF`). Use `""` for all files |
+| `folderType` | Yes | Output folder structure, or `delete` for a delete-only rule (see below) |
+| `deleteOlderThan` | No | Delete files older than N days from the output folders, then remove empty folders left behind (0 = disabled) |
+| `minAgeMinutes` | No | Skip files modified in the last N minutes so files still being written are not moved (default: 5, 0 = disabled) |
 | `dryRun` | No | Enable dry-run for this rule only (default: false) |
 
 ### Folder Types
@@ -93,6 +94,19 @@ Create a `config.json` file with an array of rules:
 | `3` | Extension + year | `pdf/2023/` |
 | `4` | Simple move (no subfolders) | `output/` |
 | `5` | Year-month | `202310/` |
+| `6` | Standard date | `2023/10/15/` |
+| `7` | ISO week (uses the ISO year, so Dec 30, 2025 → `2026/Week 01/`) | `2023/Week 41/` |
+| `delete` | Delete only: removes files older than `deleteOlderThan` days from `input` (recursive) | — |
+
+Run `sloth-go -list-types` to print this list.
+
+### Rule Validation
+
+- If a rule's `input` folder does not exist, the rule is skipped with a warning.
+- Rules with an unknown `folderType`, no `output`, or `folderType` `4` pointing back at `input` are skipped with an error before any file is touched.
+- Output folders are created automatically when their parent folder exists (not in dry-run).
+- If a file with the same name is already in the archive, the moved file is saved as `name_1.ext`, `name_2.ext`, ... Archived files are never overwritten.
+- Empty-folder cleanup never removes a folder that any rule uses as its input or output.
 
 ### Multiple Output Directories
 
@@ -118,8 +132,8 @@ Logs are written to `logs/sloth.log` with automatic rotation:
 ### Log Levels
 
 - **Info**: High-level summaries (rule execution, file counts). In dry-run mode, logs every simulated action.
-- **Warn**: Validation issues, unmatched migrations (file only)
-- **Error**: Failures with stack traces (logged to file + printed to stderr)
+- **Warn**: Missing input folders, unreadable files (file only)
+- **Error**: Invalid rules and failed operations (logged to file + printed to stderr)
 
 ### Summary Output
 
@@ -147,9 +161,9 @@ SLOTH_DRY_RUN=1 go run .
 }
 ```
 
-Dry-run mode logs all intended operations:
+Dry-run mode makes no filesystem changes (including config migration) and logs a sample of intended operations:
 ```
-[DRY-RUN] Would create folder: /archive/2023/10/Day 15
+[DRY-RUN] [Rule:Invoices] Would create output folder: /archive
 [DRY-RUN] Would move /source/file.pdf -> /archive/2023/10/Day 15/file.pdf
 [DRY-RUN] Would delete: /old/file.pdf
 ```
@@ -259,8 +273,8 @@ go run . --dry-run
 go run .
 ```
 
-### Enable Verbose Output
-Errors are automatically printed to stderr with stack traces.
+### Console Output
+Errors are printed to stderr. The completion line shows warning and error counts; details are in `logs/sloth.log`.
 
 ## Contributing
 

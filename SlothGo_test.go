@@ -60,8 +60,10 @@ func TestCreateOutputPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger := NewAppLogger(true)
-			result := createOutputPath(logger, tempDir, outputPath(), "test.pdf", tt.folderType)
+			result, err := createOutputPath(tempDir, outputPath(), "test.pdf", tt.folderType)
+			if err != nil {
+				t.Fatalf("createOutputPath() error: %v", err)
+			}
 			if result != tt.expected {
 				t.Errorf("createOutputPath() = %v, want %v", result, tt.expected)
 			}
