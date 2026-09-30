@@ -133,12 +133,7 @@ Files will be alternated: first file → drive1, second → drive2, third → dr
 
 ## Logging
 
-Logs are written to `logs/sloth.log` with automatic rotation:
-
-- **Max Size**: 10 MB per file
-- **Max Backups**: 5 files retained
-- **Max Age**: 30 days
-- **Compression**: Old logs are gzipped
+Logs are written to `logs/sloth-YYYYMMDD.log`, one file per day, and files older than 30 days are removed automatically. `logs/sloth.log` points to the current day's file.
 
 ### Log Levels
 
@@ -302,4 +297,4 @@ See [LICENSE](LICENSE) file for details.
 ## Additional Resources
 
 - [MODERNIZATION.md](MODERNIZATION.md) - Details on recent improvements
-- [.github/copilot-instructions.md](.github/copilot-instructions.md) - AI agent guidance
+- [CLAUDE.md](CLAUDE.md) - AI agent guidance
