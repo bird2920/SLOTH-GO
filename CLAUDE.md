@@ -13,7 +13,8 @@ Rule-driven file archiver: moves files from input folders into dated/organized a
 - `go vet ./...` and `GOOS=windows go vet ./...`
 - `make build-win` — console exe for manual runs
 - `make build-win-headless` — `-H=windowsgui` exe for Task Scheduler (no console window)
-- `go run . --dry-run` / `SLOTH_DRY_RUN=1`, `go run . -list-types`
+- `go run . --dry-run` / `SLOTH_DRY_RUN=1`, `go run . -list-types`, `-version`
+- `make` stamps `main.version` from `git describe`; every run logs `Version:` (read back by `scripts/Collect-SlothConfigs.ps1`, so keep that log line's format)
 
 CI tests Go 1.21–1.23: don't use newer stdlib APIs (e.g. `t.Chdir`, `for range n`).
 

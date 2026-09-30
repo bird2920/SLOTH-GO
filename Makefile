@@ -6,24 +6,27 @@
 BINARY_NAME=sloth-go
 BUILD_DIR=./bin
 GO_FILES=$(shell find . -type f -name '*.go' -not -path './vendor/*')
+# Logged at startup and printed by -version. Tag releases (git tag v1.2.0) for readable versions.
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+LDFLAGS=-X main.version=$(VERSION)
 
 # Build the application for the current OS
 build:
 	@echo "Building $(BINARY_NAME) for current OS..."
 	@mkdir -p $(BUILD_DIR)
-	@go build -o $(BUILD_DIR)/$(BINARY_NAME) .
+	@go build -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME) .
 
 # Build the application for Windows (cross-compile)
 build-win:
-	@echo "Building $(BINARY_NAME) for Windows..."
+	@echo "Building $(BINARY_NAME) $(VERSION) for Windows..."
 	@mkdir -p $(BUILD_DIR)
-	@GOOS=windows GOARCH=amd64 go build -o $(BUILD_DIR)/$(BINARY_NAME).exe .
+	@GOOS=windows GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME).exe .
 
 # Build for Windows without a console window (for Task Scheduler). Output goes only to logs/sloth.log.
 build-win-headless:
-	@echo "Building $(BINARY_NAME)-headless for Windows..."
+	@echo "Building $(BINARY_NAME)-headless $(VERSION) for Windows..."
 	@mkdir -p $(BUILD_DIR)
-	@GOOS=windows GOARCH=amd64 go build -ldflags "-H=windowsgui" -o $(BUILD_DIR)/$(BINARY_NAME)-headless.exe .
+	@GOOS=windows GOARCH=amd64 go build -ldflags "$(LDFLAGS) -H=windowsgui" -o $(BUILD_DIR)/$(BINARY_NAME)-headless.exe .
 
 # Run the application
 run: build

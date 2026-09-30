@@ -33,6 +33,7 @@ go run . -list-types       # print folder types
 |--------|-------------|
 | `--dry-run` | Simulate every rule; nothing on disk changes |
 | `-list-types` | Print the available folder types and exit |
+| `-version` | Print the build version and exit (also logged as `Version:` at the start of every run) |
 | `SLOTH_DRY_RUN=1` (env var) | Same as `--dry-run` |
 
 `config.json` is read from, and `logs/` is written to, the **current working directory**.
@@ -162,6 +163,18 @@ Sloth: Completed in 2.45s (dryRun=false, warnings=0, errors=0). See detailed log
 3. If `config.json` uses **mapped drives** (e.g. `U:`), choose **Run only when user is logged on**. With "Run whether user is logged on or not", mapped drives don't exist and every rule reports its input as missing. To run without a logged-on user, switch the config to UNC paths (`//server/share/...`).
 
 The headless build has no console, so all output goes to `logs/`. Use `sloth-go.exe` for manual runs where you want to see the console output.
+
+`make` stamps the version from `git describe` (tag releases, e.g. `git tag v2.1.0`, for readable versions). The headless exe can't print `-version` to a console, so check the `Version:` line in the log instead.
+
+### Inventory of installs across servers
+
+`scripts/Collect-SlothConfigs.ps1` reads every SLOTH install on a list of servers without changing anything. It finds scheduled tasks that run a sloth exe, then copies each `config.json` and records the task settings, exe hash, logged version and config problems (invalid JSON, legacy `removeOlderThan`, drive-relative paths such as `F:BMI`):
+
+```powershell
+.\scripts\Collect-SlothConfigs.ps1 -ComputerName SERVER01,SERVER02 -OutputPath C:\repos\sloth-go-org\deployments
+```
+
+Run it as an admin on the servers (it uses `\\SERVER\C$` shares and remote Task Scheduler). Installs with no task go in a CSV (`Server,InstallPath`) passed as `-InventoryCsv`. Server configs contain internal paths, so `deployments/` is gitignored here; keep them in the internal repo.
 
 ## Legacy Config Migration
 
